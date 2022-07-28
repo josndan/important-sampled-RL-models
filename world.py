@@ -1,33 +1,32 @@
-from utils import get_random
+from utils import get_random, CustomDefaultDict
 from collections import defaultdict
 
 
 class World:
     def __init__(self):
         self.states = set()
-        self.actions = set()
+        self.actions = set()  # TODO find out if actions is required. It's currently not used
         self.absorbing_states = set()
 
-        def states_factory(default):
-            def raise_exception():
-                raise Exception("Invalid State")
-            if dict:
-                return lambda state: default if state in self.states else raise_exception()
-            else:
-                return lambda state: default if state in self.states else raise_exception()
+        self.transition = CustomDefaultDict(self.states,
+                                            CustomDefaultDict(self.actions,
+                                                              CustomDefaultDict(
+                                                                  self.states, 0
+                                                              )
+                                                              )
+                                            )
 
-        self.transition = defaultdict(states_factory({}))
-        self.rewards = {}
-        self.initial_dist = defaultdict(states_factory(0))
+        self.rewards = {}  # TODO Design this as dictonary of dictionary (like the others) or dictionary of tuples?
+        self.initial_dist = CustomDefaultDict(self.states, 0)
         self.current_state = ""
 
     # Assumed absorbing states are not explicitly writen in transition function
     def initialize_world(self, states, transition, rewards, initial_dist):
-        self.states = states
+        self.states.update(states)
         self.transition.update(transition)
         self.absorbing_states = self.states - set(self.transition.keys())
-        self.rewards = rewards
-        self.initial_dist = initial_dist
+        self.rewards.update(rewards)
+        self.initial_dist.update(initial_dist)
         self.reset()
 
     def reset(self):
