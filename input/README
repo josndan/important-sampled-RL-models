@@ -1,0 +1,3 @@
+States not mentioned in the initial distribution are assumed to have 0 probability.
+
+States not mentioned in the from column of transition function are assumed to be absorbing states.

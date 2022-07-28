@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 
+from agent import AgentOnObservation
+
 
 class Experiment:
 
@@ -10,12 +12,20 @@ class Experiment:
         self.world.reset()
         epi_return = 0
         current_discount = discount
-        while not self.world.reached_absorbing():
-            current_state = self.world.get_current_state()
-            next_action = agent.get_action(current_state)
-            reward = self.world.take_action(next_action)
-            epi_return += discount * reward
-            current_discount *= discount
+        if isinstance(agent, AgentOnObservation):
+            while not self.world.reached_absorbing():
+                current_observation = self.world.get_current_observation()
+                next_action = agent.get_action(current_observation)
+                reward = self.world.take_action(next_action)
+                epi_return += discount * reward
+                current_discount *= discount
+        else:
+            while not self.world.reached_absorbing():
+                current_state = self.world.get_current_state()
+                next_action = agent.get_action(current_state)
+                reward = self.world.take_action(next_action)
+                epi_return += discount * reward
+                current_discount *= discount
 
         return epi_return
 

@@ -2,12 +2,12 @@ from utils import get_random, CustomDefaultDict
 from collections import defaultdict
 
 
-class World:
-    def __init__(self):
+class MDP:
+    def __init__(self, display_history):
         self.states = set()
         self.actions = set()  # TODO find out if actions is required. It's currently not used
         self.absorbing_states = set()
-
+        self.display_history = display_history
         self.transition = CustomDefaultDict(self.states,
                                             CustomDefaultDict(self.actions,
                                                               CustomDefaultDict(
@@ -21,20 +21,30 @@ class World:
         self.current_state = ""
 
     # Assumed absorbing states are not explicitly writen in transition function
-    def initialize_world(self, states, transition, rewards, initial_dist):
+    def initialize_world(self, states, transition, rewards, initial_dist, actions, *args, **kwargs):
+
         self.states.update(states)
+        self.actions.update(actions)
         self.transition.update(transition)
         self.absorbing_states = self.states - set(self.transition.keys())
         self.rewards.update(rewards)
         self.initial_dist.update(initial_dist)
-        self.reset()
+
+        if not isinstance(self, POMDP): #Because for POMDP it calls POMDP.reset
+            self.reset()
 
     def reset(self):
         self.current_state = get_random(self.initial_dist)
+        if self.display_history:
+            print("\n")
 
     def take_action(self, action):
+        if self.display_history:
+            print(f"{self.current_state}, ",end="")
         ret = self.rewards[self.current_state, action]
         self.current_state = get_random(self.transition[self.current_state][action])
+        if self.display_history:
+            print(f"{action}, {ret}; ",end="")
         return ret
 
     def get_current_state(self):
@@ -42,3 +52,36 @@ class World:
 
     def reached_absorbing(self):
         return self.current_state in self.absorbing_states
+
+
+class POMDP(MDP):
+    def __init__(self, *args, **kwargs):
+        super(POMDP, self).__init__(*args, **kwargs)
+        self.observations = set()
+        self.current_observation = ""
+        self.observation_function = CustomDefaultDict(self.states, CustomDefaultDict(
+            self.observations, 0
+        ))
+
+    def initialize_world(self, states, transition, rewards, initial_dist, actions, observations, observation_function,
+                         *args,
+                         **kwargs):
+        super(POMDP, self).initialize_world(states, transition, rewards, initial_dist, actions, *args, **kwargs)
+        self.observations.update(observations)
+        self.observation_function.update(observation_function)
+        self.reset()
+
+    def take_action(self, action):
+        if self.display_history:
+            print(f"{self.current_observation}, ",end="")
+        reward = super(POMDP, self).take_action(action)
+        self.current_observation = get_random(self.observation_function[self.current_state])
+        return reward
+
+    def get_current_observation(self):
+        return self.current_observation
+
+    def reset(self):
+        super(POMDP, self).reset()
+        self.current_observation = get_random(self.observation_function[self.current_state])
+

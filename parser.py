@@ -20,6 +20,10 @@ class MDPParser:
             result[f][a][t] = p
         return result
 
+    def parse_actions(self):
+        states_df = pd.read_csv(self.model_path.joinpath("actions.csv").as_posix(), skipinitialspace=True)
+        return set(states_df["actions"].values)
+
     def parse_reward_function(self):
         reward_function = pd.read_csv(self.model_path.joinpath("reward_function.csv").as_posix(), skipinitialspace=True)
         result = defaultdictWhichPrints(int)
@@ -44,6 +48,23 @@ class MDPParser:
             result[s] = p
         return result
 
+
+class POMDPParser(MDPParser):
+    def __init__(self,*args,**kwargs):
+        super(POMDPParser,self).__init__(*args,**kwargs)
+
+    def parse_observation(self):
+        observations_df = pd.read_csv(self.model_path.joinpath("observations.csv").as_posix(), skipinitialspace=True)
+        return set(observations_df["observations"].values)
+
+    def parse_observation_function(self):
+        observation_function = pd.read_csv(self.model_path.joinpath("observation_function.csv").as_posix(),
+                                          skipinitialspace=True)
+        result = defaultdictWhichPrints(lambda: defaultdictWhichPrints(int))
+        for index, row in observation_function.iterrows():
+            s,o,p = row[0], row[1], row[2]
+            result[s][o] = p
+        return result
 
 class defaultdictWhichPrints(defaultdict):
     def __init__(self, *args, **kargs):
