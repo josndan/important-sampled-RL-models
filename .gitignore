@@ -1,0 +1,6 @@
+#Pycharm
+.idea/
+__pycache__/
+
+
+*.zip

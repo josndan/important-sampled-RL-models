@@ -1,0 +1,9 @@
+state, action, probability
+s1, a1, 0.3
+s1, a2, 0.7
+s6, a1, 0.4
+s6, a2, 0.6
+s2, a1, 0.1
+s2, a2, 0.9
+s5, a1, 0.25
+s5, a2, 0.75
