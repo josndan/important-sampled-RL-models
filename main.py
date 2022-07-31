@@ -1,11 +1,14 @@
+from data_collector import DataCollector
 from experiment import Experiment
 from parser import MDPParser, POMDPParser
+from utils import relative_error
 from world import MDP, POMDP
 from agent import Agent, AgentOnObservation
+import time
 
 
 def get_world(parser):
-    pomdp = POMDP(True)
+    pomdp = POMDP(False)
     states = parser.parse_states()
     actions = parser.parse_actions()
     transition = parser.parse_transition_function()
@@ -17,27 +20,75 @@ def get_world(parser):
     return pomdp
 
 
-def get_agent(parser, path):
+def get_agent(parser, path, policy_on_state=False):
     actions = parser.parse_actions()
-    observations = parser.parse_observation()
     policy = parser.parse_policy(path)
 
-    agent = AgentOnObservation(observations, actions)
+    if policy_on_state:
+        states = parser.parse_states()
+        agent = Agent(states, actions)
+    else:
+        observations = parser.parse_observation()
+        agent = AgentOnObservation(observations, actions)
+
     agent.initialize_policy(policy)
     return agent
 
 
-if __name__ == '__main__':
+def get_correcting_agent(data_collector, pi_agent, parser):
+    states = parser.parse_states()
+    actions = parser.parse_actions()
+    mu_agent = Agent(states, actions)
+
+    mu_policy = data_collector.get_correction_policy(pi_agent.policy, False)
+    mu_agent.initialize_policy(mu_policy)
+
+    return mu_agent
+
+
+def timeit(func):
+    """
+    Decorator for measuring function's running time.
+    """
+
+    def measure_time(*args, **kw):
+        start_time = time.time()
+        result = func(*args, **kw)
+        print("Processing time of %s(): %.2f seconds."
+              % (func.__qualname__, time.time() - start_time))
+        return result
+
+    return measure_time
+
+
+@timeit
+def main():
     parser = POMDPParser("./input/POMDP")
+    num_episodes = 100000
+    discount = 1
 
     pomdp = get_world(parser)
-    algo = get_agent(parser, "pi.csv")
+    pi_agent = get_agent(parser, "pi.csv")
+    data_collecting_policy = get_agent(parser, "mu.csv", True)
+
+    data_collector = DataCollector(pomdp, data_collecting_policy, num_epi=num_episodes)
+    data_collector.collect()
+
+    mu_agent = get_correcting_agent(data_collector, pi_agent, parser)
+
     simulation = Experiment(pomdp, plot=False)
-    num_episodes = 1
-    # 1.
-    print(f"\nReturn: {simulation.estimate_return(algo, 1, 1)}")
-    # 2.
-    # discounts = [0.25, 0.5, 0.75, 0.99]
-    #
-    # for discount in discounts:
-    #     print(f"Return for {discount} : {simulation.estimate_return(algo, discount,num_episodes)}")
+
+    pi_first_reward, pi_return = simulation.estimate_avg_return(pi_agent, discount, num_episodes)
+    mu_first_reward, mu_return = simulation.estimate_avg_return(mu_agent, discount, num_episodes)
+
+    print(f"\npi first reward: {pi_first_reward}")
+    print(f"\nmu first reward: {mu_first_reward}")
+    print(f"\nRelative Error: {relative_error(pi_first_reward, mu_first_reward)}\n")
+
+    print(f"\npi Return: {pi_return}")
+    print(f"\nmu Return: {mu_return}")
+    print(f"\nRelative error: {relative_error(pi_return, mu_return)}\n")
+
+
+if __name__ == '__main__':
+    main()

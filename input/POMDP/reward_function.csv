@@ -1,5 +1,5 @@
 state, action, reward
-s1, a1, 3
-s2, a1, 6
-s1, a2, 0
-s2, a2, 0
+s1, a1, 7
+s2, a1, 9
+s1, a2, 4
+s2, a2, -4
