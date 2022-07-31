@@ -18,8 +18,13 @@ def get_world(parser):
 
 
 def get_agent(parser, path):
+    actions = parser.parse_actions()
+    observations = parser.parse_observation()
     policy = parser.parse_policy(path)
-    return AgentOnObservation(policy)
+
+    agent = AgentOnObservation(observations, actions)
+    agent.initialize_policy(policy)
+    return agent
 
 
 if __name__ == '__main__':
@@ -27,10 +32,10 @@ if __name__ == '__main__':
 
     pomdp = get_world(parser)
     algo = get_agent(parser, "pi.csv")
-    simulation = Experiment(pomdp)
+    simulation = Experiment(pomdp, plot=False)
     num_episodes = 1
     # 1.
-    print(simulation.estimate_return(algo, 1,100))
+    print(f"\nReturn: {simulation.estimate_return(algo, 1, 1)}")
     # 2.
     # discounts = [0.25, 0.5, 0.75, 0.99]
     #

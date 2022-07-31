@@ -1,4 +1,4 @@
-from utils import get_random, CustomDefaultDict
+from utils import get_random, CustomDefaultDict, validate_prob_axiom
 from collections import defaultdict
 
 
@@ -20,17 +20,32 @@ class MDP:
         self.initial_dist = CustomDefaultDict(self.states, 0)
         self.current_state = ""
 
-    # Assumed absorbing states are not explicitly writen in transition function
+    def __calculate_absorbing(self):
+        for state in self.states:
+            if all([all([y == 0 for y in x.values()]) for x in self.transition[state].values()]):
+                self.absorbing_states.add(state)
+                for action in self.actions:
+                    self.transition[state][action][state] = 1
+
+    def validate_transition(self):
+        for state in self.transition.keys():
+            for x in self.transition[state].values():
+                validate_prob_axiom(x)
+
     def initialize_world(self, states, transition, rewards, initial_dist, actions, *args, **kwargs):
 
         self.states.update(states)
         self.actions.update(actions)
         self.transition.update(transition)
-        self.absorbing_states = self.states - set(self.transition.keys())
+        # self.absorbing_states = self.states - set(self.transition.keys())
+        self.__calculate_absorbing()
         self.rewards.update(rewards)
         self.initial_dist.update(initial_dist)
 
-        if not isinstance(self, POMDP): #Because for POMDP it calls POMDP.reset
+        validate_prob_axiom(self.initial_dist)
+        self.validate_transition()
+
+        if not isinstance(self, POMDP):  # Because for POMDP it calls POMDP.reset instead of MDP.reset
             self.reset()
 
     def reset(self):
@@ -40,11 +55,11 @@ class MDP:
 
     def take_action(self, action):
         if self.display_history:
-            print(f"{self.current_state}, ",end="")
+            print(f"{self.current_state}, ", end="")
         ret = self.rewards[self.current_state, action]
         self.current_state = get_random(self.transition[self.current_state][action])
         if self.display_history:
-            print(f"{action}, {ret}; ",end="")
+            print(f"{action}, {ret}; ", end="")
         return ret
 
     def get_current_state(self):
@@ -73,7 +88,7 @@ class POMDP(MDP):
 
     def take_action(self, action):
         if self.display_history:
-            print(f"{self.current_observation}, ",end="")
+            print(f"{self.current_observation}, ", end="")
         reward = super(POMDP, self).take_action(action)
         self.current_observation = get_random(self.observation_function[self.current_state])
         return reward
@@ -84,4 +99,3 @@ class POMDP(MDP):
     def reset(self):
         super(POMDP, self).reset()
         self.current_observation = get_random(self.observation_function[self.current_state])
-

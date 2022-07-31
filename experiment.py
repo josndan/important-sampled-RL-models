@@ -5,8 +5,9 @@ from agent import AgentOnObservation
 
 class Experiment:
 
-    def __init__(self, world):
+    def __init__(self, world,plot):
         self.world = world
+        self.plot = plot
 
     def run_episode(self, agent, discount):
         self.world.reset()
@@ -36,8 +37,10 @@ class Experiment:
             estimated_return += self.run_episode(agent, discount)
             points.append((i, estimated_return / i))
 
-        plt.xlabel("Number of episodes")
-        plt.ylabel("Estimated Return")
-        plt.plot(*list(zip(*points)))
-        plt.show()
+        if self.plot:
+            plt.xlabel("Number of episodes")
+            plt.ylabel("Estimated Return")
+            plt.plot(*list(zip(*points)))
+            plt.show()
+
         return estimated_return / num_episode
