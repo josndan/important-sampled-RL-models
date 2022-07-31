@@ -1,9 +1,9 @@
+from experiment import Simulator
 from utils import get_random, CustomDefaultDict, validate_prob_axiom
-from collections import defaultdict
 
 
 class MDP:
-    def __init__(self, display_history):
+    def __init__(self, display_history=False):
         self.states = set()
         self.actions = set()  # TODO find out if actions is required. It's currently not used
         self.absorbing_states = set()
@@ -99,3 +99,64 @@ class POMDP(MDP):
     def reset(self):
         super(POMDP, self).reset()
         self.current_observation = get_random(self.observation_function[self.current_state])
+
+
+# Pre Condition: data collecting policy is a policy on states
+class DataCollector:
+    def __init__(self, world, data_collecting_policy):
+        self.history = None
+        self.world = world
+        self.data_collecting_policy = data_collecting_policy
+        self.estimated_cache = {}
+
+    def get_correction_policy(self, pi, estimate_separately=False):
+        if self.history is None:
+            raise Exception("Data not yet collected")
+
+        policy = CustomDefaultDict(self.world.states, CustomDefaultDict(self.world.actions, 0))
+        for state_from_mu in self.world.states:
+            for action in self.world.actions:
+                for state in self.world.states:
+                    for obs in self.world.observations:
+
+                        estimated_numerator = self.estimate([state_from_mu], [obs])
+
+                        if estimate_separately:
+                            estimated_denominator = self.estimate([action], [obs])
+                        else:
+                            estimated_denominator = 0
+                            for state_local in self.world.states:
+                                estimated_denominator += self.estimate([state_local], [obs]) * \
+                                                         self.data_collecting_policy[state_local][action]
+
+                        policy[state_from_mu][action] += self.world.observation_function[state][obs] * pi[obs][action] \
+                                                      * self.data_collecting_policy[state_from_mu][action] \
+                                                      * estimated_numerator / estimated_denominator
+
+        return policy
+
+    # probability_of and given are lists
+    # each element in the list must be a valid state or observation or action name
+    def estimate(self, probability_of, given):
+
+        if (tuple(probability_of), tuple(given)) in self.estimated_cache:
+            return self.estimated_cache[(tuple(probability_of), tuple(given))]
+
+        numerator = 0
+        denominator = 0
+        intersection = set(probability_of + given)
+        given_set = set(given)
+        for episode in self.history:
+            numerator += intersection <= set(episode)
+            denominator += given_set <= set(episode)
+
+        if denominator == 0:
+            raise Exception("Number of given instances in episode is 0")
+
+        self.estimated_cache[(tuple(probability_of), tuple(given))] = numerator / denominator
+
+        return numerator / denominator
+
+    def collect(self):
+        simulator = Simulator(self.world, False)
+        self.history = simulator.run(self.data_collecting_policy)[0]
