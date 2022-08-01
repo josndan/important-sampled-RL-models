@@ -1,4 +1,4 @@
-from utils import get_random, CustomDefaultDict
+from utils import get_random, CustomDefaultDict, validate_prob_axiom
 
 
 class Agent:
@@ -9,6 +9,7 @@ class Agent:
 
     def update_actions(self):
         for state_or_obs in self.policy:
+            validate_prob_axiom(self.policy[state_or_obs])
             self.actions.update([action for action in self.policy[state_or_obs] if self.policy[state_or_obs][action]])
 
     def initialize_policy(self, policy):
