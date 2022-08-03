@@ -1,5 +1,6 @@
 import random
 import copy
+from math import isclose
 
 
 def get_random(dist):
@@ -7,7 +8,7 @@ def get_random(dist):
 
 
 def validate_prob_axiom(dist):
-    if sum(dist.values()) != 1:
+    if not isclose(sum(dist.values()), 1, rel_tol=1e-3):
         raise Exception("Probabilities must add up to one")
 
 
