@@ -1,6 +1,9 @@
 from experiment import Simulator
 from utils import CustomDefaultDict
 
+from operator import add
+from functools import reduce
+
 
 # Pre Condition: data collecting policy is a policy on states
 class DataCollector:
@@ -21,14 +24,14 @@ class DataCollector:
                 for state in self.world.states:
                     for obs in self.world.observations:
 
-                        estimated_numerator = self.estimate([state_from_mu], [obs])
+                        estimated_numerator = self.estimate([state_from_mu], [obs], False)
 
                         if estimate_separately:
                             estimated_denominator = self.estimate([action], [obs])
                         else:
                             estimated_denominator = 0
                             for state_local in self.world.states:
-                                estimated_denominator += self.estimate([state_local], [obs]) * \
+                                estimated_denominator += self.estimate([state_local], [obs], False) * \
                                                          self.data_collecting_agent.policy[state_local][action]
                         policy[state_from_mu][action] += self.world.observation_function[state][obs] * pi[obs][action] \
                                                          * self.data_collecting_agent.policy[state_from_mu][action] \
@@ -37,24 +40,26 @@ class DataCollector:
 
     # probability_of and given are lists
     # each element in the list must be a valid state or observation or action name
-    def estimate(self, probability_of, given):
-
-        if (tuple(probability_of), tuple(given)) in self.estimated_cache:
-            return self.estimated_cache[(tuple(probability_of), tuple(given))]
+    # order is important, the given and probability_of cannot miss quantities inbetween
+    def estimate(self, probability_of, given, given_happens_before=True):
+        if (tuple(probability_of), tuple(given), given_happens_before) in self.estimated_cache:
+            return self.estimated_cache[(tuple(probability_of), tuple(given), given_happens_before)]
 
         numerator = 0
         denominator = 0
-        intersection = set(probability_of + given)
-        given_set = set(given)
+        if given_happens_before:
+            intersection = given + probability_of
+        else:
+            intersection = probability_of + given
         for episode in self.history:
-            for data in episode:
-                numerator += int(intersection <= set(data))
-                denominator += int(given_set <= set(data))
+            episode_str = ''.join(reduce(add, episode))
+            numerator += episode_str.count(''.join(intersection))
+            denominator += episode_str.count(''.join(given))
 
         if denominator == 0:
             raise Exception("Number of given instances in episode is 0")
 
-        self.estimated_cache[(tuple(probability_of), tuple(given))] = numerator / denominator
+        self.estimated_cache[(tuple(probability_of), tuple(given), given_happens_before)] = numerator / denominator
 
         return numerator / denominator
 
