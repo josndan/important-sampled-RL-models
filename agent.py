@@ -14,6 +14,7 @@ class Agent:
 
     def initialize_policy(self, policy):
         self.policy.update(policy)
+        print(policy)
         self.update_actions()
 
     def get_action(self, state):
