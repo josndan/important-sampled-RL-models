@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 from agent import AgentOnObservation
 from world import POMDP
@@ -9,13 +10,13 @@ class Simulator:
         self.world = world
         self.plot = plot
 
-    def run(self, agent, discount=1):
+    def run(self, agent, discount=1, step=1):
         self.world.reset()
         epi_return = 0
         current_discount = discount
         history = []
         t = 0
-        first_reward = 0
+        step_reward = []
         while not self.world.reached_absorbing():
             current_state = self.world.get_current_state()
 
@@ -28,10 +29,14 @@ class Simulator:
             reward = self.world.take_action(next_action)
             if t != 0:
                 epi_return += current_discount * reward
+
+                if t < step:
+                    step_reward.append(step_reward[-1] + current_discount * reward)
+
                 current_discount *= discount
             else:
                 epi_return += reward
-                first_reward = reward
+                step_reward.append(reward)
 
             if isinstance(self.world, POMDP):
                 current_observation = self.world.get_current_observation()
@@ -47,7 +52,13 @@ class Simulator:
             history.append([current_state, current_observation])
         else:
             history.append([current_state])
-        return history, epi_return, first_reward
+
+        if t < step:
+            step_reward = None
+        else:
+            step_reward = np.asarray(step_reward)
+
+        return history, epi_return, step_reward
 
 
 class Experiment(Simulator):
@@ -55,14 +66,18 @@ class Experiment(Simulator):
     def __init__(self, *args, **kwargs):
         super(Experiment, self).__init__(*args, **kwargs)
 
-    def estimate_avg_return(self, agent, discount, num_episode):
+    def estimate_avg_return(self, agent, discount, num_episode, step=1):
         estimated_return = 0
-        first_reward = 0
+        step_reward = np.zeros(step,dtype=float)
         points = []
+        num_of_episode_to_sub = 0
         for i in range(1, num_episode + 1):
-            _, e_return, f_reward = self.run(agent, discount)
+            _, e_return, s_reward = self.run(agent, discount, step)
             estimated_return += e_return
-            first_reward += f_reward
+            if s_reward is None:
+                num_of_episode_to_sub += 1
+            else:
+                step_reward = step_reward + s_reward
             if self.plot:
                 points.append((i, estimated_return / i))
 
@@ -72,4 +87,4 @@ class Experiment(Simulator):
             plt.plot(*list(zip(*points)))
             plt.show()
 
-        return first_reward/num_episode, estimated_return / num_episode
+        return step_reward / (num_episode-num_of_episode_to_sub), estimated_return / num_episode
