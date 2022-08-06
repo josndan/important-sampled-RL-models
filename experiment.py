@@ -1,6 +1,9 @@
+from functools import reduce
+
 import matplotlib.pyplot as plt
 import numpy as np
 
+from operator import add
 from agent import AgentOnObservation
 from world import POMDP
 
@@ -10,14 +13,14 @@ class Simulator:
         self.world = world
         self.plot = plot
 
-    def run(self, agent, discount=1, step=1):
+    def run(self, agent, discount=1, step=1, num_steps=1e2):
         self.world.reset()
         epi_return = 0
         current_discount = discount
         history = []
         t = 0
         step_reward = []
-        while not self.world.reached_absorbing():
+        while not self.world.reached_absorbing() and t < num_steps:
             current_state = self.world.get_current_state()
 
             if isinstance(agent, AgentOnObservation):
@@ -68,12 +71,14 @@ class Experiment(Simulator):
 
     def estimate_avg_return(self, agent, discount, num_episode, step=1):
         estimated_return = 0
-        step_reward = np.zeros(step,dtype=float)
+        step_reward = np.zeros(step, dtype=float)
         points = []
         num_of_episode_to_sub = 0
+        tot_epi_len = 0
         for i in range(1, num_episode + 1):
-            _, e_return, s_reward = self.run(agent, discount, step)
+            epi_h, e_return, s_reward = self.run(agent, discount, step)
             estimated_return += e_return
+            tot_epi_len += ''.join(reduce(add, epi_h)).count('s')  # Assumed all state names start with 's'
             if s_reward is None:
                 num_of_episode_to_sub += 1
             else:
@@ -87,4 +92,5 @@ class Experiment(Simulator):
             plt.plot(*list(zip(*points)))
             plt.show()
 
-        return step_reward / (num_episode-num_of_episode_to_sub), estimated_return / num_episode
+        return step_reward / (
+                num_episode - num_of_episode_to_sub), estimated_return / num_episode, tot_epi_len / num_episode

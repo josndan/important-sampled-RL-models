@@ -1,3 +1,5 @@
+from matplotlib import pyplot as plt
+
 from data_collector import DataCollector
 from experiment import Experiment
 from parser import MDPParser, POMDPParser
@@ -62,16 +64,14 @@ def timeit(func):
 
 
 @timeit
-def main():
+def main(num_episodes):
     parser = POMDPParser("./input/POMDP")
-    num_episodes = 1000000
-
-    discount = 1
+    discount = 0
 
     pomdp = get_world(parser)
     print("Policy Pi")
     pi_agent = get_agent(parser, "pi.csv")
-    print("Policy Mu")
+    print("Policy Mu_d")
     data_collecting_policy = get_agent(parser, "mu.csv", True)
 
     data_collector = DataCollector(pomdp, data_collecting_policy, num_epi=num_episodes)
@@ -82,18 +82,33 @@ def main():
     # print(mu_agent.policy)
     simulation = Experiment(pomdp, plot=False)
 
-    step = 3
-    pi_step_reward, pi_return = simulation.estimate_avg_return(pi_agent, discount, num_episodes, step)
-    mu_step_reward, mu_return = simulation.estimate_avg_return(mu_agent, discount, num_episodes, step)
+    step = 1
+    pi_step_reward, pi_return, pi_avg_len = simulation.estimate_avg_return(pi_agent, discount, num_episodes, step)
+    mu_step_reward, mu_return, mu_avg_len = simulation.estimate_avg_return(mu_agent, discount, num_episodes, step)
 
-    print(f"\npi {step} reward: {pi_step_reward[step-1]}")
-    print(f"\nmu {step} reward: {mu_step_reward[step-1]}")
-    print(f"\nRelative Error: {relative_error(pi_step_reward[step-1], mu_step_reward[step-1]):0.5e}\n")
-
-    print(f"\npi Return: {pi_return}")
-    print(f"\nmu Return: {mu_return}")
-    print(f"\nRelative error: {relative_error(pi_return, mu_return):0.5e}\n")
+    print(f"\npi {step} reward: {pi_step_reward[step - 1]}")
+    print(f"\nmu {step} reward: {mu_step_reward[step - 1]}")
+    print(f"\nAbsolute Error: {abs(pi_step_reward[step - 1] - mu_step_reward[step - 1])}\n")
+    #
+    # print(f"\npi Return: {pi_return}")
+    # # print(f"\npi avg len: {pi_avg_len}")
+    # print(f"\nmu Return: {mu_return}")
+    # # print(f"\nmu avg len: {mu_avg_len}")
+    # print(f"\nAbsolute error: {abs(pi_return - mu_return)}\n")
+    #
+    # return relative_error(pi_return, mu_return)
 
 
 if __name__ == '__main__':
-    main()
+    points = []
+    num_epi = [1e5]
+
+    for i, n in enumerate(num_epi):
+        print(f"\n\nIn simulation {i + 1}")
+        error = main(int(n))
+        points.append((n, error))
+
+    # plt.xlabel("Number of episodes")
+    # plt.ylabel("Relative error in pi vs mu")
+    # plt.plot(*list(zip(*points)))
+    # plt.show()

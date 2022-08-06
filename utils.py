@@ -7,8 +7,17 @@ def get_random(dist):
     return random.choices(*list(zip(*dist.items())))[0]
 
 
+def normalize(dist):
+    dist = dist.copy()
+    tot = sum(dist.values())
+    for qtn in dist:
+        dist[qtn] /= tot
+
+    return dist
+
+
 def validate_prob_axiom(dist):
-    if not isclose(sum(dist.values()), 1, rel_tol=1e-3):
+    if not isclose(sum(dist.values()), 1, rel_tol=1e-1):
         raise Exception("Probabilities must add up to one")
 
 
