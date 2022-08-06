@@ -1,6 +1,6 @@
 from experiment import Simulator
 from utils import CustomDefaultDict, normalize
-
+from collections import defaultdict
 from operator import add
 from functools import reduce
 
@@ -18,7 +18,19 @@ class DataCollector:
         if self.history is None:
             raise Exception("Data not yet collected")
 
+        d_0_obs = defaultdict(float)
+        estimated_denominator = CustomDefaultDict(self.world.actions, CustomDefaultDict(self.world.observations, 0))
+        for state_local in self.world.states:
+            for obs in self.world.observations:
+                for action in self.data_collecting_agent.actions:
+                    estimated_denominator[action][obs] += self.estimate([state_local], [obs], False) * \
+                                            self.data_collecting_agent.policy[state_local][action]
+                d_0_obs[obs] += self.world.observation_function[state_local][obs] \
+                                       * self.estimate_based_on_t(state_local, 0)
+
+
         policy = CustomDefaultDict(self.world.states, CustomDefaultDict(self.world.actions, 0))
+
         for state_from_mu in (self.world.states - self.world.absorbing_states):
             for action in self.data_collecting_agent.actions:
                 for obs in self.world.observations:
@@ -26,28 +38,19 @@ class DataCollector:
                         policy[state_from_mu][action] += self.world.observation_function[state_from_mu][obs] \
                                                          * pi[obs][action]
                     else:
-                        # initial_dist_correction = self.estimate_based_on_t(state_from_mu, 0)
-                        # initial_dist_correction = 1
-                        # for state in self.world.states:
+                        estimated_numerator = self.estimate([state_from_mu], [obs], False)
 
-                            # initial_dist_correction_policy = self.estimate_based_on_t(state, 0)
-                            initial_dist_correction_policy = 1
-                            initial_dist_correction = 1
+                        policy[state_from_mu][action] += d_0_obs[obs] * pi[obs][action] \
+                                                         * self.data_collecting_agent.policy[state_from_mu][action] \
+                                                         * estimated_numerator / estimated_denominator[action][obs]
 
-                            estimated_numerator = self.estimate([state_from_mu], [obs], False)
+                        # d_0_obs_temp = self.estimate_based_on_t(obs, 0)
+                        # if d_0_obs_temp != d_0_obs[obs]:
+                        #     print(d_0_obs_temp,  d_0_obs[obs])
+                        #     raise Exception()
 
-                            if estimate_separately:
-                                estimated_denominator = self.estimate([action], [obs])
-                            else:
-                                estimated_denominator = 0
-                                for state_local in self.world.states:
-                                    estimated_denominator += self.estimate([state_local], [obs], False) * \
-                                                             self.data_collecting_agent.policy[state_local][action]
-                            policy[state_from_mu][action] += initial_dist_correction_policy / initial_dist_correction \
-                                                             * self.world.observation_function[state][obs] * pi[obs][
-                                                                 action] \
-                                                             * self.data_collecting_agent.policy[state_from_mu][action] \
-                                                             * estimated_numerator / estimated_denominator
+                d_0_state = self.estimate_based_on_t(state_from_mu, 0)
+                policy[state_from_mu][action] /= d_0_state
 
             # policy[state_from_mu] = normalize(policy[state_from_mu])
 

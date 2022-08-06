@@ -88,7 +88,7 @@ def main(num_episodes):
 
     print(f"\npi {step} reward: {pi_step_reward[step - 1]}")
     print(f"\nmu {step} reward: {mu_step_reward[step - 1]}")
-    print(f"\nAbsolute Error: {abs(pi_step_reward[step - 1] - mu_step_reward[step - 1])}\n")
+    print(f"\nAbsolute Error: {abs(pi_step_reward[step - 1] - mu_step_reward[step - 1]):0.5e}\n")
     #
     # print(f"\npi Return: {pi_return}")
     # # print(f"\npi avg len: {pi_avg_len}")
