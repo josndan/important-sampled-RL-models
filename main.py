@@ -98,12 +98,11 @@ def main(num_episodes):
     print(f"\nmu avg len: {mu_avg_len}")
     print(f"\nAbsolute error: {abs(pi_return - mu_return)}\n")
 
-    # return relative_error(pi_return, mu_return)
 
 
 if __name__ == '__main__':
     points = []
-    num_epi = [1e5]
+    num_epi = [1e4]
 
     for i, n in enumerate(num_epi):
         print(f"\n\nIn simulation {i + 1}")

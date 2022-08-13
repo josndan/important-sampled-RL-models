@@ -14,7 +14,7 @@ class DataCollector:
         self.estimated_cache = {}
         self.num_epi = num_epi
 
-    def get_correction_policy(self, pi, without_correction_term=False, debug=False, validate_everything=True):
+    def get_correction_policy(self, pi, eqn_number=3, debug=False):
         if self.history is None:
             raise Exception("Data not yet collected")
 
@@ -39,27 +39,30 @@ class DataCollector:
             validate_prob_axiom(estimated_numerator[obs])
             validate_prob_axiom(estimated_denominator[obs])
 
-        validate_prob_axiom(d_0_obs)
-        validate_prob_axiom(d_0_state)
-
         policy = CustomDefaultDict(self.world.states, CustomDefaultDict(self.world.actions, 0))
 
-        if validate_everything:
-            if debug:
-                print("Verifying observation")
-            validate_prob_axiom(d_0_obs)
-            if debug:
-                print("Verifying states")
-            validate_prob_axiom(d_0_state)
+        if debug:
+            print("Verifying observation")
+        validate_prob_axiom(d_0_obs)
+        if debug:
+            print("Verifying states")
+        validate_prob_axiom(d_0_state)
 
         error = 0
 
         for state_from_mu in (self.world.states - self.world.absorbing_states):
             for action in self.data_collecting_agent.actions:
                 for obs in self.world.observations:
-                    if without_correction_term:
+                    if eqn_number == 1:
                         policy[state_from_mu][action] += self.world.observation_function[state_from_mu][obs] \
                                                          * pi[obs][action]
+                    elif eqn_number == 2:
+                        bias[obs][action][state_from_mu] = self.data_collecting_agent.policy[state_from_mu][action] \
+                                                           * estimated_numerator[obs][state_from_mu] / \
+                                                           estimated_denominator[obs][action]
+                        for state_local in (self.world.states - self.world.absorbing_states):
+                            policy[state_from_mu][action] += self.world.observation_function[state_local][obs] \
+                                                             * pi[obs][action] * bias[obs][action][state_from_mu]
                     else:
                         bias[obs][action][state_from_mu] = self.data_collecting_agent.policy[state_from_mu][action] \
                                                            * estimated_numerator[obs][state_from_mu] / \
@@ -68,7 +71,7 @@ class DataCollector:
                         # bias[obs][action][state_from_mu] = self.estimate([state_from_mu], [obs, action], False)
                         policy[state_from_mu][action] += d_0_obs[obs] * pi[obs][action] * bias[obs][action][
                             state_from_mu]
-                if not without_correction_term:
+                if eqn_number == 3:
                     policy[state_from_mu][action] /= d_0_state[state_from_mu]
 
             # policy[state_from_mu] = normalize(policy[state_from_mu])
@@ -90,7 +93,7 @@ class DataCollector:
     def estimate(self, probability_of, given, given_happens_before=True):
         if (tuple(probability_of), tuple(given), given_happens_before) in self.estimated_cache:
             return self.estimated_cache[(tuple(probability_of), tuple(given), given_happens_before)]
-
+        #Self-loops in transition cause issues low priority though as this isn't calculated till now
         numerator = 0
         denominator = 0
         if given_happens_before:

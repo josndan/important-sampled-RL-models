@@ -25,7 +25,7 @@ class Simulator:
             current_observation = self.world.get_current_observation()
             if isinstance(agent, AgentOnObservation):
                 if current_observation is None:
-                    raise Exception("Current Observation is None") #sanity check this should never happen
+                    raise Exception("Current Observation is None")  # sanity check this should never happen
                 next_action = agent.get_action(current_observation)
             else:
                 next_action = agent.get_action(current_state)
@@ -43,9 +43,9 @@ class Simulator:
                 step_reward.append(reward)
 
             if isinstance(self.world, POMDP):
-                history.append([current_state, current_observation, next_action, str(reward)])
+                history.append([current_state, current_observation, next_action, 'r' + str(reward)]) #Assumed 'r' is not a state or observation name
             else:
-                history.append([current_state, next_action, str(reward)])
+                history.append([current_state, next_action, 'r' + str(reward)])
 
             t += 1
 
