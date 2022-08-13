@@ -1,5 +1,5 @@
 from experiment import Simulator
-from utils import CustomDefaultDict, normalize
+from utils import CustomDefaultDict, normalize, validate_prob_axiom
 from collections import defaultdict
 from operator import add
 from functools import reduce
@@ -14,22 +14,45 @@ class DataCollector:
         self.estimated_cache = {}
         self.num_epi = num_epi
 
-    def get_correction_policy(self, pi, estimate_separately=False, without_correction_term=False):
+    def get_correction_policy(self, pi, without_correction_term=False, debug=False, validate_everything=True):
         if self.history is None:
             raise Exception("Data not yet collected")
 
-        d_0_obs = defaultdict(float)
-        estimated_denominator = CustomDefaultDict(self.world.actions, CustomDefaultDict(self.world.observations, 0))
-        for state_local in self.world.states:
-            for obs in self.world.observations:
-                for action in self.data_collecting_agent.actions:
-                    estimated_denominator[action][obs] += self.estimate([state_local], [obs], False) * \
-                                            self.data_collecting_agent.policy[state_local][action]
-                d_0_obs[obs] += self.world.observation_function[state_local][obs] \
-                                       * self.estimate_based_on_t(state_local, 0)
+        d_0_obs = CustomDefaultDict(self.world.observations, 0)
+        d_0_state = CustomDefaultDict(self.world.states, 0)
+        estimated_denominator = CustomDefaultDict(self.world.observations, CustomDefaultDict(self.world.actions, 0))
+        estimated_numerator = CustomDefaultDict(self.world.observations, CustomDefaultDict(self.world.actions, 0))
+        bias = CustomDefaultDict(self.world.observations,
+                                 CustomDefaultDict(self.world.actions, CustomDefaultDict(self.world.states, 0)))
 
+        for obs in self.world.observations:
+            for state_local in (self.world.states - self.world.absorbing_states):
+                for action in self.data_collecting_agent.actions:
+                    estimated_denominator[obs][action] += self.estimate([state_local], [obs], False) * \
+                                                          self.data_collecting_agent.policy[state_local][action]
+                d_0_obs[obs] += self.world.observation_function[state_local][obs] \
+                                * self.estimate_based_on_t(state_local, 0)
+                estimated_numerator[obs][state_local] = self.estimate([state_local], [obs], False)
+
+                d_0_state[state_local] = self.estimate_based_on_t(state_local, 0)
+
+            validate_prob_axiom(estimated_numerator[obs])
+            validate_prob_axiom(estimated_denominator[obs])
+
+        validate_prob_axiom(d_0_obs)
+        validate_prob_axiom(d_0_state)
 
         policy = CustomDefaultDict(self.world.states, CustomDefaultDict(self.world.actions, 0))
+
+        if validate_everything:
+            if debug:
+                print("Verifying observation")
+            validate_prob_axiom(d_0_obs)
+            if debug:
+                print("Verifying states")
+            validate_prob_axiom(d_0_state)
+
+        error = 0
 
         for state_from_mu in (self.world.states - self.world.absorbing_states):
             for action in self.data_collecting_agent.actions:
@@ -38,22 +61,27 @@ class DataCollector:
                         policy[state_from_mu][action] += self.world.observation_function[state_from_mu][obs] \
                                                          * pi[obs][action]
                     else:
-                        estimated_numerator = self.estimate([state_from_mu], [obs], False)
+                        bias[obs][action][state_from_mu] = self.data_collecting_agent.policy[state_from_mu][action] \
+                                                           * estimated_numerator[obs][state_from_mu] / \
+                                                           estimated_denominator[obs][action]
 
-                        policy[state_from_mu][action] += d_0_obs[obs] * pi[obs][action] \
-                                                         * self.data_collecting_agent.policy[state_from_mu][action] \
-                                                         * estimated_numerator / estimated_denominator[action][obs]
-
-                        # d_0_obs_temp = self.estimate_based_on_t(obs, 0)
-                        # if d_0_obs_temp != d_0_obs[obs]:
-                        #     print(d_0_obs_temp,  d_0_obs[obs])
-                        #     raise Exception()
-
-                d_0_state = self.estimate_based_on_t(state_from_mu, 0)
-                policy[state_from_mu][action] /= d_0_state
+                        # bias[obs][action][state_from_mu] = self.estimate([state_from_mu], [obs, action], False)
+                        policy[state_from_mu][action] += d_0_obs[obs] * pi[obs][action] * bias[obs][action][
+                            state_from_mu]
+                if not without_correction_term:
+                    policy[state_from_mu][action] /= d_0_state[state_from_mu]
 
             # policy[state_from_mu] = normalize(policy[state_from_mu])
+        if debug:
+            print(bias)
+            for action in self.data_collecting_agent.actions:
+                for obs in self.world.observations:
+                    validate_prob_axiom(bias[obs][action])
+                    error += abs(1 - sum(bias[obs][action].values()))
 
+            print()
+            print("Total error", error)
+            print()
         return policy
 
     # probability_of and given are lists

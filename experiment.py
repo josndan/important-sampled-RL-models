@@ -22,9 +22,10 @@ class Simulator:
         step_reward = []
         while not self.world.reached_absorbing() and t < num_steps:
             current_state = self.world.get_current_state()
-
+            current_observation = self.world.get_current_observation()
             if isinstance(agent, AgentOnObservation):
-                current_observation = self.world.get_current_observation()
+                if current_observation is None:
+                    raise Exception("Current Observation is None") #sanity check this should never happen
                 next_action = agent.get_action(current_observation)
             else:
                 next_action = agent.get_action(current_state)
@@ -42,7 +43,6 @@ class Simulator:
                 step_reward.append(reward)
 
             if isinstance(self.world, POMDP):
-                current_observation = self.world.get_current_observation()
                 history.append([current_state, current_observation, next_action, str(reward)])
             else:
                 history.append([current_state, next_action, str(reward)])
@@ -50,11 +50,11 @@ class Simulator:
             t += 1
 
         current_state = self.world.get_current_state()
-        if isinstance(self.world, POMDP):
-            current_observation = self.world.get_current_observation()
-            history.append([current_state, current_observation])
-        else:
-            history.append([current_state])
+        # if isinstance(self.world, POMDP):
+        #     current_observation = self.world.get_current_observation()
+        #     history.append([current_state, current_observation])
+        # else:
+        history.append([current_state])
 
         if t < step:
             step_reward = None

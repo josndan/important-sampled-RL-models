@@ -23,8 +23,8 @@ class MDP:
         for state in self.states:
             if all([all([y == 0 for y in x.values()]) for x in self.transition[state].values()]):
                 self.absorbing_states.add(state)
-                for action in self.actions:
-                    self.transition[state][action][state] = 1
+                # for action in self.actions:
+                #     self.transition[state][action][state] = 1
 
     def validate_transition(self):
         for state in self.transition.keys():
@@ -34,9 +34,10 @@ class MDP:
     def initialize_world(self, states, transition, rewards, initial_dist, actions, *args, **kwargs):
 
         self.states.update(states)
+
         self.actions.update(actions)
         self.transition.update(transition)
-        # self.absorbing_states = self.states - set(self.transition.keys())
+
         self.__calculate_absorbing()
         self.rewards.update(rewards)
         self.initial_dist.update(initial_dist)
@@ -55,6 +56,10 @@ class MDP:
     def take_action(self, action):
         if self.display_history:
             print(f"{self.current_state}, ", end="")
+
+        if self.reached_absorbing():
+            raise Exception("Taking action after reaching absorbing state")
+
         ret = self.rewards[self.current_state, action]
         self.current_state = get_random(self.transition[self.current_state][action])
         if self.display_history:
@@ -89,7 +94,10 @@ class POMDP(MDP):
         if self.display_history:
             print(f"{self.current_observation}, ", end="")
         reward = super(POMDP, self).take_action(action)
-        self.current_observation = get_random(self.observation_function[self.current_state])
+        if not self.reached_absorbing():
+            self.current_observation = get_random(self.observation_function[self.current_state])
+        else:
+            self.current_observation = None
         return reward
 
     def get_current_observation(self):

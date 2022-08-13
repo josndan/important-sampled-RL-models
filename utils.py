@@ -18,7 +18,9 @@ def normalize(dist):
 
 def validate_prob_axiom(dist):
     if not isclose(sum(dist.values()), 1, rel_tol=1e-1):
-        raise Exception("Probabilities must add up to one")
+        print("Probabilities don't add up exiting")
+        exit()
+        # raise Exception("Probabilities must add up to one")
 
 
 def relative_error(x, y):
@@ -30,6 +32,9 @@ class CustomDefaultDict(dict):
         super(CustomDefaultDict, self).__init__()
         self.set_to_check = set_to_check
         self.default = default
+
+    def update_set_to_check(self, set_to_check):
+        self.set_to_check = set_to_check
 
     def __getitem__(self, key):
         if key in self.set_to_check and key not in self:
