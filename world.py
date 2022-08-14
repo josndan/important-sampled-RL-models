@@ -104,6 +104,13 @@ class POMDP(MDP):
         self.observation_function.update(observation_function)
         self.reset()
 
+    def display(self):
+        super(POMDP, self).display()
+        print("Observations")
+        print(self.observations)
+        print("Observation function")
+        print(self.observation_function)
+
     def take_action(self, action):
         if self.display_history:
             print(f"{self.current_observation}, ", end="")
