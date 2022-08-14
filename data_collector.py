@@ -7,12 +7,13 @@ from functools import reduce
 
 # Pre Condition: data collecting policy is a policy on states
 class DataCollector:
-    def __init__(self, world, data_collecting_agent, num_epi=1000):
+    def __init__(self, world, data_collecting_agent, num_epi=1000, epi_len=20):
         self.history = None
         self.world = world
         self.data_collecting_agent = data_collecting_agent
         self.estimated_cache = {}
         self.num_epi = num_epi
+        self.epi_len = epi_len
 
     def get_correction_policy(self, pi, eqn_number=3, debug=False):
         if self.history is None:
@@ -49,7 +50,7 @@ class DataCollector:
         validate_prob_axiom(d_0_state)
 
         error = 0
-
+        temp_sum = 0
         for state_from_mu in (self.world.states - self.world.absorbing_states):
             for action in self.data_collecting_agent.actions:
                 for obs in self.world.observations:
@@ -68,13 +69,15 @@ class DataCollector:
                                                            * estimated_numerator[obs][state_from_mu] / \
                                                            estimated_denominator[obs][action]
 
-                        # bias[obs][action][state_from_mu] = self.estimate([state_from_mu], [obs, action], False)
+                        bias[obs][action][state_from_mu] = self.estimate([state_from_mu], [obs, action], False)
                         policy[state_from_mu][action] += d_0_obs[obs] * pi[obs][action] * bias[obs][action][
                             state_from_mu]
+                temp_sum += policy[state_from_mu][action]
                 if eqn_number == 3:
                     policy[state_from_mu][action] /= d_0_state[state_from_mu]
 
             # policy[state_from_mu] = normalize(policy[state_from_mu])
+        print("temp_sum", temp_sum)
         if debug:
             print(bias)
             for action in self.data_collecting_agent.actions:
@@ -93,7 +96,7 @@ class DataCollector:
     def estimate(self, probability_of, given, given_happens_before=True):
         if (tuple(probability_of), tuple(given), given_happens_before) in self.estimated_cache:
             return self.estimated_cache[(tuple(probability_of), tuple(given), given_happens_before)]
-        #Self-loops in transition cause issues low priority though as this isn't calculated till now
+        # Self-loops in transition cause issues low priority though as this isn't calculated as of now
         numerator = 0
         denominator = 0
         if given_happens_before:
@@ -103,7 +106,10 @@ class DataCollector:
         for episode in self.history:
             episode_str = ''.join(reduce(add, episode))
             numerator += episode_str.count(''.join(intersection))
-            denominator += episode_str.count(''.join(given))
+            if len(given) != 0:
+                denominator += episode_str.count(''.join(given))
+            else:
+                denominator += self.epi_len
 
         if denominator == 0:
             raise Exception("Number of given instances in episode is 0")
@@ -126,4 +132,4 @@ class DataCollector:
 
     def collect(self):
         simulator = Simulator(self.world, False)
-        self.history = [simulator.run(self.data_collecting_agent, 0)[0] for _ in range(self.num_epi)]
+        self.history = [simulator.run(self.data_collecting_agent, 0, 1, self.epi_len)[0] for _ in range(self.num_epi)]

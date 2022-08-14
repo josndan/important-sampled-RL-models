@@ -26,6 +26,20 @@ class MDP:
                 # for action in self.actions:
                 #     self.transition[state][action][state] = 1
 
+    def display(self):
+        print("States")
+        print(self.states)
+        print("Absorbing States")
+        print(self.absorbing_states)
+        print("Initial Distribution")
+        print(self.initial_dist)
+        print("Transition function")
+        print(self.transition)
+        print("Actions")
+        print(self.actions)
+        print("Reward function")
+        print(self.rewards)
+
     def validate_transition(self):
         for state in self.transition.keys():
             for x in self.transition[state].values():

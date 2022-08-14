@@ -102,7 +102,7 @@ def main(num_episodes):
 
 if __name__ == '__main__':
     points = []
-    num_epi = [1e4]
+    num_epi = [2]
 
     for i, n in enumerate(num_epi):
         print(f"\n\nIn simulation {i + 1}")
