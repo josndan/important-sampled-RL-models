@@ -21,15 +21,21 @@ class DataCollector:
         d_0_obs = CustomDefaultDict(self.world.observations, 0)
         d_0_state = CustomDefaultDict(self.world.states, 0)
         estimated_denominator = CustomDefaultDict(self.world.observations, CustomDefaultDict(self.world.actions, 0))
+        estimated_denominator_test = CustomDefaultDict(self.world.observations,
+                                                       CustomDefaultDict(self.world.actions, 0))
         estimated_numerator = CustomDefaultDict(self.world.observations, CustomDefaultDict(self.world.actions, 0))
         bias = CustomDefaultDict(self.world.observations,
                                  CustomDefaultDict(self.world.actions, CustomDefaultDict(self.world.states, 0)))
+        bias_test = CustomDefaultDict(self.world.observations,
+                                      CustomDefaultDict(self.world.actions, CustomDefaultDict(self.world.states, 0)))
 
         for obs in self.world.observations:
             for state_local in (self.world.states - self.world.absorbing_states):
                 for action in self.data_collecting_agent.actions:
+                    bias_test[obs][action][state_local] = self.estimate((state_local,), (obs, action))
                     estimated_denominator[obs][action] += self.estimate((state_local,), (obs,)) * \
                                                           self.data_collecting_agent.policy[state_local][action]
+                    estimated_denominator_test[obs][action] = self.estimate((action,), (obs,))
                 d_0_obs[obs] += self.world.observation_function[state_local][obs] \
                                 * self.estimate_based_on_t((state_local,), 0)
                 estimated_numerator[obs][state_local] = self.estimate((state_local,), (obs,))
@@ -38,6 +44,7 @@ class DataCollector:
 
             validate_prob_axiom(estimated_numerator[obs])
             validate_prob_axiom(estimated_denominator[obs])
+            validate_prob_axiom(estimated_denominator_test[obs])
 
         policy = CustomDefaultDict(self.world.states, CustomDefaultDict(self.world.actions, 0))
 
@@ -49,6 +56,16 @@ class DataCollector:
             print("Verifying states")
             print(d_0_state)
         validate_prob_axiom(d_0_state)
+
+        if debug:
+            print("Estimated numerator")
+            print(estimated_numerator)
+
+            print("Estimated Denominator")
+            print(estimated_denominator)
+
+            print("Estimated Denominator test")
+            print(estimated_denominator_test)
 
         error = 0
         temp_sum = 0
@@ -73,27 +90,31 @@ class DataCollector:
                                                            estimated_denominator[obs][action]
 
                         # bias[obs][action][state_from_mu] = self.estimate((state_from_mu,), (obs, action,))
-                        policy[state_from_mu][action] += d_0_obs[obs] * pi[obs][action] * bias[obs][action][
+                        policy[state_from_mu][action] += d_0_obs[obs] * pi[obs][action] * bias_test[obs][action][
                             state_from_mu]
                 temp_sum += policy[state_from_mu][action]
                 d_0_state_checker[state_from_mu] += policy[state_from_mu][action]
-                # if eqn_number == 3:
-                #     policy[state_from_mu][action] /= d_0_state[state_from_mu]
+                if eqn_number == 3:
+                    policy[state_from_mu][action] /= d_0_state[state_from_mu]
 
             # policy[state_from_mu] = normalize(policy[state_from_mu])
         print("temp_sum", temp_sum)
         print("d_0 from bias")
         print(d_0_state_checker)
         if debug:
+            print("Bias")
             print(bias)
-            for action in self.data_collecting_agent.actions:
-                for obs in self.world.observations:
-                    validate_prob_axiom(bias[obs][action])
-                    error += abs(1 - sum(bias[obs][action].values()))
 
-            print()
-            print("Total error", error)
-            print()
+            print("Bias test")
+            print(bias_test)
+            # for action in self.data_collecting_agent.actions:
+            #     for obs in self.world.observations:
+            #         validate_prob_axiom(bias[obs][action])
+            #         error += abs(1 - sum(bias[obs][action].values()))
+            #
+            # print()
+            # print("Total error", error)
+            # print()
         return policy
 
     # probability_of and given are lists
@@ -115,7 +136,7 @@ class DataCollector:
         if len(given) == 0:
             if denominator != 0:
                 raise Exception("This shouldn't be happening #sanitycheck")
-            denominator = self.epi_len * self.num_epi
+            denominator = self.epi_len * self.num_epi  # Does not work for MDP with absorbing states
 
         if denominator == 0:
             raise Exception("Number of given instances in episode is 0")

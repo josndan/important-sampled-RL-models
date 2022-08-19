@@ -77,32 +77,34 @@ def main(num_episodes):
     data_collector = DataCollector(pomdp, data_collecting_policy, num_epi=num_episodes)
     data_collector.collect()
 
+    # print("History")
+    # print(data_collector.history)
+
     print("Corrected Policy")
     mu_agent = get_correcting_agent(data_collector, pi_agent, parser)
 
-    simulation = Experiment(pomdp, plot=False)
-
-    step = 1
-    # number of single rewards do you want? step = 1 means just give me the ability to extract just the
-    # first reward; step = 2 means give me the ability to extract the first as well as the second reward
-    pi_step_reward, pi_return, pi_avg_len = simulation.estimate_avg_return(pi_agent, discount, num_episodes, step)
-    mu_step_reward, mu_return, mu_avg_len = simulation.estimate_avg_return(mu_agent, discount, num_episodes, step)
-
-    print(f"\npi {step} reward: {pi_step_reward[step - 1]}")
-    print(f"\nmu {step} reward: {mu_step_reward[step - 1]}")
-    print(f"\nAbsolute Error: {abs(pi_step_reward[step - 1] - mu_step_reward[step - 1]):0.5e}\n")
-
-    print(f"\npi Return: {pi_return}")
-    print(f"\npi avg len: {pi_avg_len}")
-    print(f"\nmu Return: {mu_return}")
-    print(f"\nmu avg len: {mu_avg_len}")
-    print(f"\nAbsolute error: {abs(pi_return - mu_return)}\n")
-
+    # simulation = Experiment(pomdp, plot=False)
+    #
+    # step = 1
+    # # number of single rewards do you want? step = 1 means just give me the ability to extract just the
+    # # first reward; step = 2 means give me the ability to extract the first as well as the second reward
+    # pi_step_reward, pi_return, pi_avg_len = simulation.estimate_avg_return(pi_agent, discount, num_episodes, step)
+    # mu_step_reward, mu_return, mu_avg_len = simulation.estimate_avg_return(mu_agent, discount, num_episodes, step)
+    #
+    # print(f"\npi {step} reward: {pi_step_reward[step - 1]}")
+    # print(f"\nmu {step} reward: {mu_step_reward[step - 1]}")
+    # print(f"\nAbsolute Error: {abs(pi_step_reward[step - 1] - mu_step_reward[step - 1]):0.5e}\n")
+    #
+    # print(f"\npi Return: {pi_return}")
+    # print(f"\npi avg len: {pi_avg_len}")
+    # print(f"\nmu Return: {mu_return}")
+    # print(f"\nmu avg len: {mu_avg_len}")
+    # print(f"\nAbsolute error: {abs(pi_return - mu_return)}\n")
 
 
 if __name__ == '__main__':
     points = []
-    num_epi = [1e4]
+    num_epi = [1e5]
 
     for i, n in enumerate(num_epi):
         print(f"\n\nIn simulation {i + 1}")

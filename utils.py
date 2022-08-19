@@ -18,7 +18,8 @@ def normalize(dist):
 
 def validate_prob_axiom(dist):
     if not isclose(sum(dist.values()), 1, rel_tol=1e-1):
-        raise Exception("Probabilities must add up to one")
+        # raise Exception("Probabilities must add up to one")
+        print("Probabilities don't add up")
 
 
 def relative_error(x, y):
