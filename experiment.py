@@ -34,12 +34,15 @@ class Simulator:
             if t != 0:
                 epi_return += current_discount * reward
 
-                if t < step:
-                    step_reward.append(step_reward[-1] + current_discount * reward)
+                # if t < step: # This would be step return
+                #     step_reward.append(step_reward[-1] + current_discount * reward)
 
                 current_discount *= discount
             else:
                 epi_return += reward
+                # step_reward.append(reward)
+
+            if t < step:
                 step_reward.append(reward)
 
             if isinstance(self.world, POMDP):
@@ -71,6 +74,7 @@ class Experiment(Simulator):
 
     def estimate_avg_return(self, agent, discount, num_episode, step=1):
         estimated_return = 0
+        step = int(step)
         step_reward = np.zeros(step, dtype=float)
         points = []
         num_of_episode_to_sub = 0
@@ -78,7 +82,7 @@ class Experiment(Simulator):
         for i in range(1, num_episode + 1):
             epi_h, e_return, s_reward = self.run(agent, discount, step)
             estimated_return += e_return
-            tot_epi_len += ''.join(reduce(add, epi_h)).count('s')  # Assumed all state names start with 's'
+            tot_epi_len += len(epi_h)
             if s_reward is None:
                 num_of_episode_to_sub += 1
             else:

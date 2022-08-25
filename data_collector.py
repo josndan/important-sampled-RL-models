@@ -1,5 +1,5 @@
 from experiment import Simulator
-from utils import CustomDefaultDict, normalize, validate_prob_axiom
+from utils import CustomDefaultDict, normalize, validate_prob_axiom, parallelize
 from functools import lru_cache
 from operator import add
 from functools import reduce
@@ -14,7 +14,7 @@ class DataCollector:
         self.num_epi = num_epi
         self.epi_len = epi_len
 
-    def get_correction_policy(self, pi, eqn_number=3, debug=True):
+    def get_correction_policy(self, pi, eqn_number=1, debug=False):
         if self.history is None:
             raise Exception("Data not yet collected")
 
@@ -28,44 +28,44 @@ class DataCollector:
                                  CustomDefaultDict(self.world.actions, CustomDefaultDict(self.world.states, 0)))
         bias_test = CustomDefaultDict(self.world.observations,
                                       CustomDefaultDict(self.world.actions, CustomDefaultDict(self.world.states, 0)))
-
-        for obs in self.world.observations:
-            for state_local in (self.world.states - self.world.absorbing_states):
-                for action in self.data_collecting_agent.actions:
-                    bias_test[obs][action][state_local] = self.estimate((state_local,), (obs, action))
-                    estimated_denominator[obs][action] += self.estimate((state_local,), (obs,)) * \
-                                                          self.data_collecting_agent.policy[state_local][action]
-                    estimated_denominator_test[obs][action] = self.estimate((action,), (obs,))
-                d_0_obs[obs] += self.world.observation_function[state_local][obs] \
-                                * self.estimate_based_on_t((state_local,), 0)
-                estimated_numerator[obs][state_local] = self.estimate((state_local,), (obs,))
-
-                d_0_state[state_local] = self.estimate_based_on_t((state_local,), 0)
-
-            validate_prob_axiom(estimated_numerator[obs])
-            validate_prob_axiom(estimated_denominator[obs])
-            validate_prob_axiom(estimated_denominator_test[obs])
-
         policy = CustomDefaultDict(self.world.states, CustomDefaultDict(self.world.actions, 0))
 
-        if debug:
-            print("Verifying observation")
-            print(d_0_obs)
-        validate_prob_axiom(d_0_obs)
-        if debug:
-            print("Verifying states")
-            print(d_0_state)
-        validate_prob_axiom(d_0_state)
+        if eqn_number != 1:
+            for obs in self.world.observations:
+                for state_local in (self.world.states - self.world.absorbing_states):
+                    for action in self.data_collecting_agent.actions:
+                        bias_test[obs][action][state_local] = self.estimate((state_local,), (obs, action))
+                        estimated_denominator[obs][action] += self.estimate((state_local,), (obs,)) * \
+                                                              self.data_collecting_agent.policy[state_local][action]
+                        estimated_denominator_test[obs][action] = self.estimate((action,), (obs,))
+                    d_0_obs[obs] += self.world.observation_function[state_local][obs] \
+                                    * self.estimate_based_on_t((state_local,), 0)
+                    estimated_numerator[obs][state_local] = self.estimate((state_local,), (obs,))
 
-        if debug:
-            print("Estimated numerator")
-            print(estimated_numerator)
+                    d_0_state[state_local] = self.estimate_based_on_t((state_local,), 0)
 
-            print("Estimated Denominator")
-            print(estimated_denominator)
+                validate_prob_axiom(estimated_numerator[obs])
+                validate_prob_axiom(estimated_denominator[obs])
+                validate_prob_axiom(estimated_denominator_test[obs])
 
-            print("Estimated Denominator test")
-            print(estimated_denominator_test)
+            if debug:
+                print("Verifying observation")
+                print(d_0_obs)
+            validate_prob_axiom(d_0_obs)
+            if debug:
+                print("Verifying states")
+                print(d_0_state)
+            validate_prob_axiom(d_0_state)
+
+            if debug:
+                print("Estimated numerator")
+                print(estimated_numerator)
+
+                print("Estimated Denominator")
+                print(estimated_denominator)
+
+                print("Estimated Denominator test")
+                print(estimated_denominator_test)
 
         error = 0
         temp_sum = 0
@@ -98,10 +98,12 @@ class DataCollector:
                     policy[state_from_mu][action] /= d_0_state[state_from_mu]
 
             # policy[state_from_mu] = normalize(policy[state_from_mu])
-        print("temp_sum", temp_sum)
-        print("d_0 from bias")
-        print(d_0_state_checker)
+
         if debug:
+            print("temp_sum", temp_sum)
+            print("d_0 from bias")
+            print(d_0_state_checker)
+
             print("Bias")
             print(bias)
 
@@ -153,4 +155,7 @@ class DataCollector:
 
     def collect(self):
         simulator = Simulator(self.world, False)
+        # self.history = [res[0] for res in
+        #                 parallelize(simulator.run, [(self.data_collecting_agent, 0, 1, self.epi_len)] * self.num_epi)]
+
         self.history = [simulator.run(self.data_collecting_agent, 0, 1, self.epi_len)[0] for _ in range(self.num_epi)]

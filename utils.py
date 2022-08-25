@@ -1,10 +1,22 @@
 import random
+import numpy as np
 import copy
 from math import isclose
+import multiprocessing
 
 
 def get_random(dist):
     return random.choices(*list(zip(*dist.items())))[0]
+
+
+# def get_random(dist):
+#     key, p = list(zip(*dist.items()))
+#     return np.random.default_rng().choice(key, p=p)
+
+
+def parallelize(func, args):
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
+        return p.starmap(func, args)
 
 
 def normalize(dist):
