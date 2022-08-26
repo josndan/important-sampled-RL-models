@@ -82,7 +82,7 @@ class Experiment(Simulator):
         for i in range(1, num_episode + 1):
             epi_h, e_return, s_reward = self.run(agent, discount, step)
             estimated_return += e_return
-            tot_epi_len += len(epi_h)
+            tot_epi_len += len(epi_h) - 1
             if s_reward is None:
                 num_of_episode_to_sub += 1
             else:

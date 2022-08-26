@@ -1,7 +1,7 @@
 states, observation, probability
-s1, o1, 0.4
-s1, o2, 0.6
-s2, o1, 0.45
-s2, o2, 0.55
-s3, o1, 0.35
-s3, o2, 0.65
+s1, o1, 1.0
+s1, o2, 0.0
+s2, o1, 1.0
+s2, o2, 0.0
+s3, o1, 0.0
+s3, o2, 1.0

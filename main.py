@@ -67,7 +67,7 @@ def timeit(func):
 
 
 @timeit
-def main(num_episodes, verbose=False):
+def main(num_episodes, verbose=True):
     parser = POMDPParser("./input/POMDP")
     discount = 0
 
@@ -76,12 +76,12 @@ def main(num_episodes, verbose=False):
     pi_agent = get_agent(parser, "pi.csv")
     data_collecting_policy = get_agent(parser, "mu.csv", True)
 
-    data_collector = DataCollector(pomdp, data_collecting_policy, num_epi=num_episodes)
+    data_collector = DataCollector(pomdp, data_collecting_policy, num_epi=num_episodes, epi_len=10)
     data_collector.collect()
-
+    #
     # print("History")
     # print(data_collector.history)
-
+    #
     mu_agent = get_correcting_agent(data_collector, pi_agent, parser)
 
     if verbose:
@@ -99,14 +99,15 @@ def main(num_episodes, verbose=False):
     step = 100
     # number of single rewards do you want? step = 1 means just give me the ability to extract just the
     # first reward; step = 2 means give me the ability to extract the first as well as the second reward
-    pi_step_reward, pi_return, pi_avg_len = simulation.estimate_avg_return(pi_agent, discount, num_episodes, step)
+    pi_step_reward, pi_return, pi_avg_len = simulation.estimate_avg_return(pi_agent, discount,
+                                                                           num_episodes, step)
     mu_step_reward, mu_return, mu_avg_len = simulation.estimate_avg_return(mu_agent, discount, num_episodes, step)
 
-    if verbose:
-        for step_len in range(int(step)):
-            print(f"\npi {step_len + 1} reward: {pi_step_reward[step_len]}")
-            print(f"\nmu {step_len + 1} reward: {mu_step_reward[step_len]}")
-            print(f"\nAbsolute Error: {abs(pi_step_reward[step_len] - mu_step_reward[step_len]):0.5e}\n")
+    # if verbose:
+    #     for step_len in range(int(step)):
+    #         print(f"\npi {step_len + 1} reward: {pi_step_reward[step_len]}")
+    #         print(f"\nmu {step_len + 1} reward: {mu_step_reward[step_len]}")
+    #         print(f"\nAbsolute Error: {abs(pi_step_reward[step_len] - mu_step_reward[step_len]):0.5e}\n")
 
     print(f"\npi Return: {pi_return}")
     print(f"\nmu Return: {mu_return}")
@@ -120,7 +121,7 @@ def main(num_episodes, verbose=False):
 
 if __name__ == '__main__':
     points = []
-    num_epi = [1e4, 1e5]
+    num_epi = [1e5]
 
     fig = plt.figure()
     ax = fig.add_subplot()
@@ -132,7 +133,12 @@ if __name__ == '__main__':
         pi_step_reward, mu_step_reward, _, _ = main(int(n))
         # points.append((n, error))
 
-        ax.plot(np.absolute(pi_step_reward - mu_step_reward), label=f"Number of trials {int(n):0.1e}")
+        y = np.absolute(pi_step_reward - mu_step_reward)
+        x = np.arange(len(y))
+        z = np.polyfit(x, y, 1)
+        p = np.poly1d(z)
+        ax.plot(y, label=f"Number of trials {int(n):0.1e}")
+        ax.plot(x, p(x))
 
     ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
     plt.legend()
