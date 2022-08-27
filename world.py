@@ -2,11 +2,10 @@ from utils import get_random, CustomDefaultDict, validate_prob_axiom
 
 
 class MDP:
-    def __init__(self, display_history=False):
+    def __init__(self):
         self.states = set()
         self.actions = set()  # TODO find out if actions is required. It's currently not used
         self.absorbing_states = set()
-        self.display_history = display_history
         self.transition = CustomDefaultDict(self.states,
                                             CustomDefaultDict(self.actions,
                                                               CustomDefaultDict(
@@ -64,20 +63,13 @@ class MDP:
 
     def reset(self):
         self.current_state = get_random(self.initial_dist)
-        if self.display_history:
-            print("\n")
 
     def take_action(self, action):
-        if self.display_history:
-            print(f"{self.current_state}, ", end="")
-
         if self.reached_absorbing():
             raise Exception("Taking action after reaching absorbing state")
 
         ret = self.rewards[self.current_state, action]
         self.current_state = get_random(self.transition[self.current_state][action])
-        if self.display_history:
-            print(f"{action}, {ret}; ", end="")
         return ret
 
     def get_current_state(self):
@@ -112,8 +104,6 @@ class POMDP(MDP):
         print(self.observation_function)
 
     def take_action(self, action):
-        if self.display_history:
-            print(f"{self.current_observation}, ", end="")
         reward = super(POMDP, self).take_action(action)
         if not self.reached_absorbing():
             self.current_observation = get_random(self.observation_function[self.current_state])

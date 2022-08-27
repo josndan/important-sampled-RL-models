@@ -1,100 +1,86 @@
-from functools import reduce
-
-import matplotlib.pyplot as plt
 import numpy as np
-
-from operator import add
+from tqdm import tqdm
 from agent import AgentOnObservation
 from world import POMDP
 
 
-class Simulator:
-    def __init__(self, world, plot):
-        self.world = world
-        self.plot = plot
-
-    def run(self, agent, discount=1, step=1, num_steps=1e2):
-        self.world.reset()
-        epi_return = 0
-        current_discount = discount
+def run(agent, world, discount, step, epi_len, return_history=False):
+    world.reset()
+    epi_return = 0
+    current_discount = discount
+    if return_history:
         history = []
-        t = 0
-        step_reward = []
-        while not self.world.reached_absorbing() and t < num_steps:
-            current_state = self.world.get_current_state()
-            current_observation = self.world.get_current_observation()
-            if isinstance(agent, AgentOnObservation):
-                if current_observation is None:
-                    raise Exception("Current Observation is None")  # sanity check this should never happen
-                next_action = agent.get_action(current_observation)
-            else:
-                next_action = agent.get_action(current_state)
+    t = 0
+    step_reward = []
+    while not world.reached_absorbing() and t < epi_len:
+        current_state = world.get_current_state()
+        current_observation = world.get_current_observation()
+        if isinstance(agent, AgentOnObservation):
+            if current_observation is None:
+                raise Exception("Current Observation is None")  # sanity check this should never happen
+            next_action = agent.get_action(current_observation)
+        else:
+            next_action = agent.get_action(current_state)
 
-            reward = self.world.take_action(next_action)
-            if t != 0:
-                epi_return += current_discount * reward
+        reward = world.take_action(next_action)
+        if t != 0:
+            epi_return += current_discount * reward
 
-                # if t < step: # This would be step return
-                #     step_reward.append(step_reward[-1] + current_discount * reward)
+            # if t < step: # This would be step return
+            #     step_reward.append(step_reward[-1] + current_discount * reward)
 
-                current_discount *= discount
-            else:
-                epi_return += reward
-                # step_reward.append(reward)
+            current_discount *= discount
+        else:
+            epi_return += reward
+            # step_reward.append(reward)
 
-            if t < step:
-                step_reward.append(reward)
+        if t < step:
+            step_reward.append(reward)
 
-            if isinstance(self.world, POMDP):
-                history.append([current_state, current_observation, next_action, 'r' + str(reward)]) #Assumed 'r' is not a state or observation name
+        if return_history:
+            if isinstance(world, POMDP):
+                history.append([current_state, current_observation, next_action,
+                                'r' + str(reward)])  # Assumed 'r' is not a state or observation name
             else:
                 history.append([current_state, next_action, 'r' + str(reward)])
 
-            t += 1
+        t += 1
 
-        current_state = self.world.get_current_state()
-        # if isinstance(self.world, POMDP):
-        #     current_observation = self.world.get_current_observation()
-        #     history.append([current_state, current_observation])
-        # else:
+    if return_history:
+        current_state = world.get_current_state()
         history.append([current_state])
 
-        if t < step:
-            step_reward = None
-        else:
-            step_reward = np.asarray(step_reward)
+    if t < step:
+        raise Exception("Time step less than episode length")
 
-        return history, epi_return, step_reward
+    if return_history:
+        return history, epi_return, np.asarray(step_reward)
+    else:
+        return epi_return, np.asarray(step_reward)
 
 
-class Experiment(Simulator):
+class Experiment:
 
-    def __init__(self, *args, **kwargs):
-        super(Experiment, self).__init__(*args, **kwargs)
+    def __init__(self, world_factory):
+        self.world_factory = world_factory
 
-    def estimate_avg_return(self, agent, discount, num_episode, step=1):
+    def estimate_avg_return(self, agent, discount, num_episode, epi_len, step=None):
         estimated_return = 0
+        if step is None:
+            step = epi_len
+
+        if step > epi_len:
+            raise Exception("time steps length greater than episode length")
+
         step = int(step)
         step_reward = np.zeros(step, dtype=float)
-        points = []
-        num_of_episode_to_sub = 0
-        tot_epi_len = 0
-        for i in range(1, num_episode + 1):
-            epi_h, e_return, s_reward = self.run(agent, discount, step)
-            estimated_return += e_return
-            tot_epi_len += len(epi_h) - 1
-            if s_reward is None:
-                num_of_episode_to_sub += 1
-            else:
-                step_reward = step_reward + s_reward
-            if self.plot:
-                points.append((i, estimated_return / i))
 
-        if self.plot:
-            plt.xlabel("Number of episodes")
-            plt.ylabel("Estimated Return")
-            plt.plot(*list(zip(*points)))
-            plt.show()
+        num_of_episode_to_sub = 0
+        for i in tqdm(range(1, num_episode + 1)):
+            e_return, s_reward = run(agent, self.world_factory(), discount, step, epi_len)
+            estimated_return += e_return
+
+            step_reward = step_reward + s_reward
 
         return step_reward / (
-                num_episode - num_of_episode_to_sub), estimated_return / num_episode, tot_epi_len / num_episode
+                num_episode - num_of_episode_to_sub), estimated_return / num_episode

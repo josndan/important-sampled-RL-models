@@ -1,4 +1,4 @@
-from experiment import Simulator
+from experiment import run
 from utils import CustomDefaultDict, normalize, validate_prob_axiom, parallelize
 from functools import lru_cache
 from operator import add
@@ -154,8 +154,8 @@ class DataCollector:
         return numerator / self.num_epi
 
     def collect(self):
-        simulator = Simulator(self.world, False)
         # self.history = [res[0] for res in
         #                 parallelize(simulator.run, [(self.data_collecting_agent, 0, 1, self.epi_len)] * self.num_epi)]
 
-        self.history = [simulator.run(self.data_collecting_agent, 0, 1, self.epi_len)[0] for _ in range(self.num_epi)]
+        self.history = [run(self.data_collecting_agent, self.world, 0, 1, self.epi_len, True)[0] for _ in
+                        range(self.num_epi)]

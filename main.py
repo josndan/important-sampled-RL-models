@@ -1,19 +1,16 @@
-from collections import Counter
-
+import sys
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
 from data_collector import DataCollector
 from experiment import Experiment
-from parser import MDPParser, POMDPParser
-from utils import relative_error
-from world import MDP, POMDP
+from parser import POMDPParser
+from world import POMDP
 from agent import Agent, AgentOnObservation
 import time
 
 
-def get_world(parser):
-    pomdp = POMDP(False)
+def get_world_factory(parser):
     states = parser.parse_states()
     actions = parser.parse_actions()
     transition = parser.parse_transition_function()
@@ -21,8 +18,13 @@ def get_world(parser):
     initial_dist = parser.parse_init_dist()
     observations = parser.parse_observation()
     observation_function = parser.parse_observation_function()
-    pomdp.initialize_world(states, transition, rewards, initial_dist, actions, observations, observation_function)
-    return pomdp
+
+    def factory():
+        pomdp = POMDP()
+        pomdp.initialize_world(states, transition, rewards, initial_dist, actions, observations, observation_function)
+        return pomdp
+
+    return factory
 
 
 def get_agent(parser, path, policy_on_state=False):
@@ -67,16 +69,16 @@ def timeit(func):
 
 
 @timeit
-def main(num_episodes, verbose=True):
+def main(num_episodes, verbose=True, epi_len=10):
     parser = POMDPParser("./input/POMDP")
     discount = 0
 
-    pomdp = get_world(parser)
+    pomdp_factory = get_world_factory(parser)
 
     pi_agent = get_agent(parser, "pi.csv")
     data_collecting_policy = get_agent(parser, "mu.csv", True)
 
-    data_collector = DataCollector(pomdp, data_collecting_policy, num_epi=num_episodes, epi_len=10)
+    data_collector = DataCollector(pomdp_factory(), data_collecting_policy, num_epi=int(1e4), epi_len=10)
     data_collector.collect()
     #
     # print("History")
@@ -93,15 +95,16 @@ def main(num_episodes, verbose=True):
 
         print("Corrected Policy")
         print(mu_agent.policy)
+        print()
+        sys.stdout.flush()
 
-    simulation = Experiment(pomdp, plot=False)
+    simulation = Experiment(pomdp_factory)
 
-    step = 100
     # number of single rewards do you want? step = 1 means just give me the ability to extract just the
     # first reward; step = 2 means give me the ability to extract the first as well as the second reward
-    pi_step_reward, pi_return, pi_avg_len = simulation.estimate_avg_return(pi_agent, discount,
-                                                                           num_episodes, step)
-    mu_step_reward, mu_return, mu_avg_len = simulation.estimate_avg_return(mu_agent, discount, num_episodes, step)
+    pi_step_reward, pi_return = simulation.estimate_avg_return(pi_agent, discount,
+                                                               num_episodes, epi_len)
+    mu_step_reward, mu_return = simulation.estimate_avg_return(mu_agent, discount, num_episodes, epi_len)
 
     # if verbose:
     #     for step_len in range(int(step)):
@@ -112,16 +115,18 @@ def main(num_episodes, verbose=True):
     print(f"\npi Return: {pi_return}")
     print(f"\nmu Return: {mu_return}")
     print(f"\nAbsolute error: {abs(pi_return - mu_return):0.5e}\n")
-    print()
-    print(f"\npi avg len: {pi_avg_len}")
-    print(f"\nmu avg len: {mu_avg_len}")
+    print("Step reward stats")
+    error = np.abs(pi_step_reward-mu_step_reward)
+    print(f"\npi min error: {np.min(error):0.5e}")
+    print(f"\nmu max error: {np.max(error):0.5e}")
+    print(f"\naverage: {np.average(error):0.5e}\n")
 
     return pi_step_reward, mu_step_reward, pi_return, mu_return
 
 
 if __name__ == '__main__':
     points = []
-    num_epi = [1e5]
+    num_epi = [1e4]
 
     fig = plt.figure()
     ax = fig.add_subplot()
@@ -134,10 +139,10 @@ if __name__ == '__main__':
         # points.append((n, error))
 
         y = np.absolute(pi_step_reward - mu_step_reward)
-        x = np.arange(len(y))
+        x = np.arange(1, len(y) + 1)
         z = np.polyfit(x, y, 1)
         p = np.poly1d(z)
-        ax.plot(y, label=f"Number of trials {int(n):0.1e}")
+        ax.scatter(x, y, label=f"Number of trials {int(n):0.1e}")
         ax.plot(x, p(x))
 
     ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
