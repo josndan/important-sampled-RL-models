@@ -1,7 +1,10 @@
+import operator
+from functools import reduce
 import numpy as np
 from tqdm import tqdm
 from agent import AgentOnObservation
 from world import POMDP
+from joblib import Parallel, delayed
 
 
 def run(agent, world, discount, step, epi_len, return_history=False):
@@ -64,8 +67,7 @@ class Experiment:
     def __init__(self, world_factory):
         self.world_factory = world_factory
 
-    def estimate_avg_return(self, agent, discount, num_episode, epi_len, step=None):
-        estimated_return = 0
+    def estimate_avg_return(self, agent, discount, num_episode, epi_len, step=None, parallel=True):
         if step is None:
             step = epi_len
 
@@ -73,14 +75,21 @@ class Experiment:
             raise Exception("time steps length greater than episode length")
 
         step = int(step)
-        step_reward = np.zeros(step, dtype=float)
 
-        num_of_episode_to_sub = 0
-        for i in tqdm(range(1, num_episode + 1)):
-            e_return, s_reward = run(agent, self.world_factory(), discount, step, epi_len)
-            estimated_return += e_return
+        estimated_return = 0
+        step_reward = np.zeros(step)
 
-            step_reward = step_reward + s_reward
+        if parallel:
+            result = Parallel(n_jobs=8)(
+                delayed(run)(agent, self.world_factory(), discount, step, epi_len, False) for _ in range(num_episode))
 
-        return step_reward / (
-                num_episode - num_of_episode_to_sub), estimated_return / num_episode
+            estimated_return, step_reward = reduce(lambda a, b: tuple(map(operator.add, a, b)), result,
+                                                   (0, np.zeros(step)))
+        else:
+            for i in tqdm(range(1, num_episode + 1)):
+                e_return, s_reward = run(agent, self.world_factory(), discount, step, epi_len)
+                estimated_return += e_return
+
+                step_reward = step_reward + s_reward
+
+        return step_reward / num_episode, estimated_return / num_episode

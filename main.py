@@ -125,8 +125,7 @@ def main(num_episodes, verbose=True, epi_len=10):
 
 
 if __name__ == '__main__':
-    points = []
-    num_epi = [1e4]
+    num_epi = [1e5]
 
     fig = plt.figure()
     ax = fig.add_subplot()
@@ -136,8 +135,6 @@ if __name__ == '__main__':
     for i, n in enumerate(num_epi):
         print(f"\n\nIn simulation {i + 1}")
         pi_step_reward, mu_step_reward, _, _ = main(int(n))
-        # points.append((n, error))
-
         y = np.absolute(pi_step_reward - mu_step_reward)
         x = np.arange(1, len(y) + 1)
         z = np.polyfit(x, y, 1)
@@ -148,7 +145,3 @@ if __name__ == '__main__':
     ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
     plt.legend()
     plt.show()
-    # plt.xlabel("Number of episodes")
-    # plt.ylabel("Relative error in pi vs mu")
-    # plt.plot(*list(zip(*points)))
-    # plt.show()
