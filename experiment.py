@@ -80,7 +80,7 @@ class Experiment:
         step_reward = np.zeros(step)
 
         if parallel:
-            result = Parallel(n_jobs=8)(
+            result = Parallel(n_jobs=4)(
                 delayed(run)(agent, self.world_factory(), discount, step, epi_len, False) for _ in range(num_episode))
 
             estimated_return, step_reward = reduce(lambda a, b: tuple(map(operator.add, a, b)), result,

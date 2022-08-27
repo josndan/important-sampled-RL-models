@@ -1,10 +1,14 @@
 import sys
+from collections import Counter
+from typing import Callable
+
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
 from data_collector import DataCollector
 from experiment import Experiment
 from parser import POMDPParser
+from utils import get_random
 from world import POMDP
 from agent import Agent, AgentOnObservation
 import time
@@ -51,6 +55,33 @@ def get_correcting_agent(data_collector, pi_agent, parser):
     mu_agent.initialize_policy(mu_policy)
 
     return mu_agent
+
+
+def get_baseline_estimation(num_episode):
+    dist = {"t1": 0.4, "t2": 0.6}
+    estimate = Counter()
+    for i in range(num_episode):
+        estimate[get_random(dist)] += 1
+    for i in estimate:
+        print(f"{abs(estimate[i] / num_episode - dist[i]):0.5e}")
+
+
+def get_baseline_equal_policy(num_episode, epi_len=10):
+    parser = POMDPParser("./input/POMDP")
+    pomdp_factory = get_world_factory(parser)
+    policy = get_agent(parser, "mu.csv", True)
+
+    simulation = Experiment(pomdp_factory)
+
+    s1_step_reward, _ = simulation.estimate_avg_return(policy, 0,
+                                                       num_episode, epi_len)
+    s2_step_reward, _ = simulation.estimate_avg_return(policy, 0, num_episode, epi_len)
+
+    print("Step reward stats")
+    error = np.abs(s1_step_reward - s2_step_reward)
+    print(f"\nmin error: {np.min(error):0.5e}")
+    print(f"\nmax error: {np.max(error):0.5e}")
+    print(f"\naverage: {np.average(error):0.5e}\n")
 
 
 def timeit(func):
@@ -116,15 +147,17 @@ def main(num_episodes, verbose=True, epi_len=10):
     print(f"\nmu Return: {mu_return}")
     print(f"\nAbsolute error: {abs(pi_return - mu_return):0.5e}\n")
     print("Step reward stats")
-    error = np.abs(pi_step_reward-mu_step_reward)
-    print(f"\npi min error: {np.min(error):0.5e}")
-    print(f"\nmu max error: {np.max(error):0.5e}")
+    error = np.abs(pi_step_reward - mu_step_reward)
+    print(f"\nmin error: {np.min(error):0.5e}")
+    print(f"\nmax error: {np.max(error):0.5e}")
     print(f"\naverage: {np.average(error):0.5e}\n")
 
     return pi_step_reward, mu_step_reward, pi_return, mu_return
 
 
 if __name__ == '__main__':
+    # get_baseline_equal_policy(int(1e5))
+
     num_epi = [1e5]
 
     fig = plt.figure()
