@@ -1,10 +1,11 @@
 from utils import get_random, CustomDefaultDict, validate_prob_axiom
 
-
 class MDP:
     def __init__(self):
         self.states = set()
+        self.states_map = dict()
         self.actions = set()  # TODO find out if actions is required. It's currently not used
+        self._actions_list = list()
         self.absorbing_states = set()
         self.transition = CustomDefaultDict(self.states,
                                             CustomDefaultDict(self.actions,
@@ -47,8 +48,10 @@ class MDP:
     def initialize_world(self, states, transition, rewards, initial_dist, actions, *args, **kwargs):
 
         self.states.update(states)
+        self.states_map = {k: v for k, v in zip(self.states, range(len(self.states)))}
 
         self.actions.update(actions)
+        self._actions_list.extend(actions)
         self.transition.update(transition)
 
         self.__calculate_absorbing()
