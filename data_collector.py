@@ -3,6 +3,7 @@ from utils import CustomDefaultDict, normalize, validate_prob_axiom, parallelize
 from functools import lru_cache
 from operator import add
 from functools import reduce
+from tqdm import tqdm
 
 
 # Pre Condition: data collecting policy is a policy on states
@@ -156,6 +157,6 @@ class DataCollector:
     def collect(self):
         # self.history = [res[0] for res in
         #                 parallelize(simulator.run, [(self.data_collecting_agent, 0, 1, self.epi_len)] * self.num_epi)]
-
+        print("Collecting Data")
         self.history = [run(self.data_collecting_agent, self.world, 0, 1, self.epi_len, True)[0] for _ in
-                        range(self.num_epi)]
+                        tqdm(range(self.num_epi))]

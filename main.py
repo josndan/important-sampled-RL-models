@@ -100,7 +100,7 @@ def timeit(func):
 
 
 @timeit
-def main(num_episodes, verbose=True, epi_len=10):
+def simulate(num_episodes, verbose=True, epi_len=10):
     parser = POMDPParser("./input/POMDP")
     discount = 0
 
@@ -155,10 +155,8 @@ def main(num_episodes, verbose=True, epi_len=10):
     return pi_step_reward, mu_step_reward, pi_return, mu_return
 
 
-if __name__ == '__main__':
+def main(num_epi):
     # get_baseline_equal_policy(int(1e5))
-
-    num_epi = [1e5]
 
     fig = plt.figure()
     ax = fig.add_subplot()
@@ -167,7 +165,7 @@ if __name__ == '__main__':
 
     for i, n in enumerate(num_epi):
         print(f"\n\nIn simulation {i + 1}")
-        pi_step_reward, mu_step_reward, _, _ = main(int(n))
+        pi_step_reward, mu_step_reward, _, _ = simulate(int(n))
         y = np.absolute(pi_step_reward - mu_step_reward)
         x = np.arange(1, len(y) + 1)
         z = np.polyfit(x, y, 1)
@@ -178,3 +176,8 @@ if __name__ == '__main__':
     ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
     plt.legend()
     plt.show()
+
+
+if __name__ == '__main__':
+    num_epi = [1e5]
+    main(num_epi)
