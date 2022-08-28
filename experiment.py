@@ -83,8 +83,14 @@ class Experiment:
             result = Parallel(n_jobs=4)(
                 delayed(run)(agent, self.world_factory(), discount, step, epi_len, False) for _ in range(num_episode))
 
-            estimated_return, step_reward = reduce(lambda a, b: tuple(map(operator.add, a, b)), result,
-                                                   (0, np.zeros(step)))
+            estimated_return, step_reward = 0, np.zeros(step)
+
+            for epi_ret, step_reward in result:
+                estimated_return += epi_ret
+                step_reward += step_reward
+
+            # estimated_return, step_reward = reduce(lambda a, b: tuple(map(operator.add, a, b)), result,
+            #                                        (0, np.zeros(step)))
         else:
             for i in tqdm(range(1, num_episode + 1)):
                 e_return, s_reward = run(agent, self.world_factory(), discount, step, epi_len)
