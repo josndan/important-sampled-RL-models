@@ -85,7 +85,7 @@ class Experiment:
 
             estimated_return, step_reward = 0, np.zeros(step)
 
-            for epi_ret, step_reward in result:
+            for epi_ret, step_reward in tqdm(result):
                 estimated_return += epi_ret
                 step_reward += step_reward
 

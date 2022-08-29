@@ -102,7 +102,7 @@ def timeit(func):
 @timeit
 def simulate(num_episodes, verbose=True, epi_len=10):
     parser = POMDPParser("./input/POMDP")
-    discount = 0
+    discount = 0.8
 
     pomdp_factory = get_world_factory(parser)
 
@@ -158,26 +158,27 @@ def simulate(num_episodes, verbose=True, epi_len=10):
 def main(num_epi):
     # get_baseline_equal_policy(int(1e5))
 
-    fig = plt.figure()
-    ax = fig.add_subplot()
-    plt.xlabel("Step")
-    plt.ylabel("Absolute Error")
+    # fig = plt.figure()
+    # ax = fig.add_subplot()
+    # plt.xlabel("Step")
+    # plt.ylabel("Absolute Error")
 
     for i, n in enumerate(num_epi):
         print(f"\n\nIn simulation {i + 1}")
         pi_step_reward, mu_step_reward, _, _ = simulate(int(n))
-        y = np.absolute(pi_step_reward - mu_step_reward)
-        x = np.arange(1, len(y) + 1)
-        z = np.polyfit(x, y, 1)
-        p = np.poly1d(z)
-        ax.scatter(x, y, label=f"Number of trials {int(n):0.1e}")
-        ax.plot(x, p(x))
+        # y = np.absolute(pi_step_reward - mu_step_reward)
+        # x = np.arange(1, len(y) + 1)
+        # z = np.polyfit(x, y, 1)
+        # p = np.poly1d(z)
+        # ax.scatter(x, y, label=f"Number of trials {int(n):0.1e}")
+        # ax.plot(x, p(x))
 
-    ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
-    plt.legend()
-    plt.show()
+    # ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
+    # plt.legend()
+    # plt.show()
 
 
 if __name__ == '__main__':
     num_epi = [1e5]
     main(num_epi)
+    # get_baseline_equal_policy(int(num_epi[0]))
