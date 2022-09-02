@@ -1,0 +1,5 @@
+observation, action, probability
+o1, a1, 0.4
+o1, a2, 0.6
+o2, a1, 0.7
+o2, a2, 0.3

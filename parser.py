@@ -28,8 +28,8 @@ class MDPParser:
         reward_function = pd.read_csv(self.model_path.joinpath("reward_function.csv").as_posix(), skipinitialspace=True)
         result = defaultdictWhichPrints(int)
         for index, row in reward_function.iterrows():
-            s, a, p = row[0], row[1], row[2]
-            result[s, a] = p
+            s, p = row[0], row[1]
+            result[s] = p
         return result
 
     def parse_policy(self, policyPath):

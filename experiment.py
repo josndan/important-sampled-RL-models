@@ -1,5 +1,6 @@
 import operator
 from functools import reduce
+from collections import Counter
 import numpy as np
 from tqdm import tqdm
 from agent import AgentOnObservation
@@ -15,9 +16,11 @@ def run(agent, world, discount, step, epi_len, return_history=False):
         history = []
     t = 0
     step_reward = []
+    observation_visitation = Counter()
     while not world.reached_absorbing() and t < epi_len:
         current_state = world.get_current_state()
         current_observation = world.get_current_observation()
+        observation_visitation[current_observation] += 1
         if isinstance(agent, AgentOnObservation):
             if current_observation is None:
                 raise Exception("Current Observation is None")  # sanity check this should never happen
@@ -59,7 +62,7 @@ def run(agent, world, discount, step, epi_len, return_history=False):
     if return_history:
         return history, epi_return, np.asarray(step_reward)
     else:
-        return epi_return, np.asarray(step_reward)
+        return epi_return, np.asarray(step_reward), observation_visitation
 
 
 class Experiment:
@@ -78,24 +81,28 @@ class Experiment:
 
         estimated_return = 0
         step_reward = np.zeros(step)
+        observation_visitations = Counter()
 
         if parallel:
-            result = Parallel(n_jobs=4)(
-                delayed(run)(agent, self.world_factory(), discount, step, epi_len, False) for _ in range(num_episode))
-
-            estimated_return, step_reward = 0, np.zeros(step)
-
-            for epi_ret, step_reward in tqdm(result):
+            for epi_ret, step_reward, observation_visitation in tqdm(Parallel(n_jobs=4)(
+                    delayed(run)(agent, self.world_factory(), discount, step, epi_len, False) for _ in
+                    range(num_episode))):
                 estimated_return += epi_ret
                 step_reward += step_reward
+                observation_visitations += observation_visitation
 
             # estimated_return, step_reward = reduce(lambda a, b: tuple(map(operator.add, a, b)), result,
             #                                        (0, np.zeros(step)))
         else:
             for i in tqdm(range(1, num_episode + 1)):
-                e_return, s_reward = run(agent, self.world_factory(), discount, step, epi_len)
+                e_return, s_reward, observation_visitation = run(agent, self.world_factory(), discount, step, epi_len)
                 estimated_return += e_return
-
+                observation_visitations += observation_visitation
                 step_reward = step_reward + s_reward
 
-        return step_reward / num_episode, estimated_return / num_episode
+        normalization_factor = sum(observation_visitations.values())
+
+        for key in observation_visitations:
+            observation_visitations[key] /= normalization_factor
+
+        return step_reward / num_episode, estimated_return / num_episode, observation_visitations

@@ -1,7 +1,4 @@
-state, action, reward
-s1, a1, 7
-s2, a1, 9
-s1, a2, 4
-s2, a2, -4
-s3, a1, 2
-s3, a2, 30
+state, reward
+s1, 7
+s2, -4
+s3, 30

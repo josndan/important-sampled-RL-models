@@ -5,6 +5,7 @@ from typing import Callable
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
+
 from data_collector import DataCollector
 from experiment import Experiment
 from parser import POMDPParser
@@ -66,22 +67,27 @@ def get_baseline_estimation(num_episode):
         print(f"{abs(estimate[i] / num_episode - dist[i]):0.5e}")
 
 
-def get_baseline_equal_policy(num_episode, epi_len=10):
+def get_baseline_equal_policy(num_episode, epi_len=100, discount=1):
     parser = POMDPParser("./input/POMDP")
     pomdp_factory = get_world_factory(parser)
-    policy = get_agent(parser, "mu.csv", True)
+    policy = get_agent(parser, "data_collecting_states.csv", True)
 
     simulation = Experiment(pomdp_factory)
 
-    s1_step_reward, _ = simulation.estimate_avg_return(policy, 0,
-                                                       num_episode, epi_len)
-    s2_step_reward, _ = simulation.estimate_avg_return(policy, 0, num_episode, epi_len)
+    s1_step_reward, r1, _ = simulation.estimate_avg_return(policy, discount,
+                                                           num_episode, epi_len)
+    s2_step_reward, r2, _ = simulation.estimate_avg_return(policy, discount, num_episode, epi_len)
+    print("Baseline")
+    print("Return stats")
+    print(f"\nabsolute error: {abs(r1 - r2):0.5e}")
 
-    print("Step reward stats")
+    print("Step reward stats\n")
     error = np.abs(s1_step_reward - s2_step_reward)
     print(f"\nmin error: {np.min(error):0.5e}")
     print(f"\nmax error: {np.max(error):0.5e}")
     print(f"\naverage: {np.average(error):0.5e}\n")
+
+    return s1_step_reward, s2_step_reward, r1, r2
 
 
 def timeit(func):
@@ -100,14 +106,16 @@ def timeit(func):
 
 
 @timeit
-def simulate(num_episodes, verbose=True, epi_len=10):
+def simulate(num_episodes, verbose=True, epi_len=100):
     parser = POMDPParser("./input/POMDP")
-    discount = 0.8
+    discount = 1
 
     pomdp_factory = get_world_factory(parser)
 
     pi_agent = get_agent(parser, "pi.csv")
-    data_collecting_policy = get_agent(parser, "mu.csv", True)
+    data_collecting_policy = get_agent(parser, "data_collecting_states.csv", True)
+
+    # data_collecting_policy = get_agent(parser, "data_collecting_obs.csv")
 
     data_collector = DataCollector(pomdp_factory(), data_collecting_policy, num_epi=int(1e4), epi_len=10)
     data_collector.collect()
@@ -121,7 +129,7 @@ def simulate(num_episodes, verbose=True, epi_len=10):
         print("Policy Pi")
         print(pi_agent.policy)
 
-        print("Policy Mu_d")
+        print("Data collecting policy")
         print(data_collecting_policy.policy)
 
         print("Corrected Policy")
@@ -133,9 +141,10 @@ def simulate(num_episodes, verbose=True, epi_len=10):
 
     # number of single rewards do you want? step = 1 means just give me the ability to extract just the
     # first reward; step = 2 means give me the ability to extract the first as well as the second reward
-    pi_step_reward, pi_return = simulation.estimate_avg_return(pi_agent, discount,
-                                                               num_episodes, epi_len)
-    mu_step_reward, mu_return = simulation.estimate_avg_return(mu_agent, discount, num_episodes, epi_len)
+    pi_step_reward, pi_return, pi_observation_visitations = simulation.estimate_avg_return(pi_agent, discount,
+                                                                                           num_episodes, epi_len)
+    mu_step_reward, mu_return, mu_observation_visitations = simulation.estimate_avg_return(mu_agent, discount,
+                                                                                           num_episodes, epi_len)
 
     # if verbose:
     #     for step_len in range(int(step)):
@@ -151,6 +160,12 @@ def simulate(num_episodes, verbose=True, epi_len=10):
     print(f"\nmin error: {np.min(error):0.5e}")
     print(f"\nmax error: {np.max(error):0.5e}")
     print(f"\naverage: {np.average(error):0.5e}\n")
+    print()
+    print("Pi Observation visitation:")
+    print(pi_observation_visitations)
+    print()
+    print("Mu Observation visitation:")
+    print(mu_observation_visitations)
 
     return pi_step_reward, mu_step_reward, pi_return, mu_return
 
@@ -158,27 +173,37 @@ def simulate(num_episodes, verbose=True, epi_len=10):
 def main(num_epi):
     # get_baseline_equal_policy(int(1e5))
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot()
-    # plt.xlabel("Step")
-    # plt.ylabel("Absolute Error")
+    fig = plt.figure()
+    ax = fig.add_subplot()
 
     for i, n in enumerate(num_epi):
         print(f"\n\nIn simulation {i + 1}")
-        pi_step_reward, mu_step_reward, _, _ = simulate(int(n))
-        # y = np.absolute(pi_step_reward - mu_step_reward)
-        # x = np.arange(1, len(y) + 1)
-        # z = np.polyfit(x, y, 1)
-        # p = np.poly1d(z)
-        # ax.scatter(x, y, label=f"Number of trials {int(n):0.1e}")
-        # ax.plot(x, p(x))
 
-    # ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
-    # plt.legend()
-    # plt.show()
+        pi_step_reward, mu_step_reward, _, _ = simulate(int(n))
+        base_s1_step_reward, base_s2_step_reward, _, _ = get_baseline_equal_policy(int(n))
+
+        y = np.absolute(pi_step_reward - mu_step_reward)
+        y_ = np.absolute(base_s1_step_reward - base_s2_step_reward)
+        x_ = np.arange(1, len(y_) + 1)
+        z_ = np.polyfit(x_, y_, 1)
+        p_ = np.poly1d(z_)
+        x = np.arange(1, len(y) + 1)
+        z = np.polyfit(x, y, 1)
+        p = np.poly1d(z)
+        ax.scatter(x_, y_, label=f"Baseline for Number of trials {int(n):0.1e}")
+        ax.plot(x_, p_(x_))
+
+        ax.plot(x, p(x))
+        ax.scatter(x, y, label=f"Number of trials {int(n):0.1e}")
+
+    ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
+    plt.legend()
+    plt.xlabel("Step")
+    plt.ylabel("Absolute Error")
+    plt.title("Absolute error vs time step")
+    plt.show()
 
 
 if __name__ == '__main__':
     num_epi = [1e5]
     main(num_epi)
-    # get_baseline_equal_policy(int(num_epi[0]))

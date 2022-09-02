@@ -71,7 +71,7 @@ class MDP:
         if self.reached_absorbing():
             raise Exception("Taking action after reaching absorbing state")
 
-        ret = self.rewards[self.current_state, action]
+        ret = self.rewards[self.current_state]
         self.current_state = get_random(self.transition[self.current_state][action])
         return ret
 
