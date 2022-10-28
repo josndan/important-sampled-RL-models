@@ -46,7 +46,8 @@ def run(agent, world, discount, step, epi_len, return_history=False):
         if return_history:
             if isinstance(world, POMDP):
                 history.append([current_state, current_observation, next_action,
-                                'r' + str(reward)])  # Assumed 'r' is not a state or observation name
+                                'r' + str(reward)])  # Precautionary Assumption that 'r' is not a state or
+                # observation name
             else:
                 history.append([current_state, next_action, 'r' + str(reward)])
 

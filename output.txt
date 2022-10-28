@@ -1,0 +1,100 @@
+POMDP:
+- 3 states
+- 2 observations
+- 2 actions
+- start state is stochastic
+- transitions are stochastic
+- Observation function is deterministic
+- Reward range -4 to 30
+
+With the number of episodes on order up to 1e5/1e6, we are able to get the absolute errors (LHS -RHS in theorem for deterministic observation function) on the order of 1e-3. But this could have high variance since I get 1e-1 and 1e-2 sometimes.
+For number of episodes = 1e5
+ - Baseline:
+    Step reward stats (just the order)
+        min error: 1e-05
+        max error: 1e-04
+        average: 1e-04
+    Return stats
+        absolute error: 1e-1 to 1e-4
+
+        discount = 1
+            absolute error: 9.82000e-02
+            absolute error: 7.99400e-02
+        discount = 0.8
+            absolute error: 8.32348e-04
+            absolute error: 4.86771e-02
+
+ - Return error is higher with higher variance on order of 1e-1 to 1e-3
+
+
+Discount = 1
+
+Policy Pi
+{'o1': {'a1': 0.6, 'a2': 0.4}, 'o2': {'a1': 0.3, 'a2': 0.7}}
+Data collecting policy
+{'s1': {'a1': 0.7, 'a2': 0.3}, 's2': {'a1': 0.2, 'a2': 0.8}, 's3': {'a1': 0.6, 'a2': 0.4}}
+Corrected Policy
+{'s3': {'a1': 0.3, 'a2': 0.7}, 's1': {'a1': 0.6, 'a2': 0.4}, 's2': {'a1': 0.6, 'a2': 0.4}}
+
+Baseline
+Return stats
+absolute error: 2.81800e-02
+
+Step reward stats
+
+min error: 0.00000e+00
+max error: 4.60000e-04
+average: 1.34000e-04
+
+Experiments
+
+pi Return: 108.32076
+mu Return: 108.48119
+Absolute error: 1.60430e-01
+
+Step reward stats
+
+min error: 0.00000e+00
+max error: 6.80000e-04
+average: 3.18000e-04
+
+
+Pi Observation visitation:
+Counter({'o1': 0.659808, 'o2': 0.340192})
+
+Mu Observation visitation:
+Counter({'o1': 0.659165, 'o2': 0.340835})
+
+
+Discount = 0.8
+
+Baseline
+Return stats
+absolute error: 7.92600e-03
+
+Step reward stats
+min error: 0.00000e+00
+max error: 6.80000e-04
+average: 2.46000e-04
+
+Policy Pi
+{'o1': {'a1': 0.6, 'a2': 0.4}, 'o2': {'a1': 0.3, 'a2': 0.7}}
+Data collecting policy
+{'s1': {'a1': 0.7, 'a2': 0.3}, 's2': {'a1': 0.2, 'a2': 0.8}, 's3': {'a1': 0.6, 'a2': 0.4}}
+Corrected Policy
+{'s3': {'a1': 0.3, 'a2': 0.7}, 's1': {'a1': 0.6, 'a2': 0.4}, 's2': {'a1': 0.6, 'a2': 0.4}}
+
+pi Return: 48.365045525967666
+mu Return: 48.386286058989974
+Absolute error: 2.12405e-02
+
+Step reward stats
+min error: 0.00000e+00
+max error: 6.80000e-04
+average: 1.82000e-04
+
+Pi Observation visitation:
+Counter({'o1': 0.659298, 'o2': 0.340702})
+
+Mu Observation visitation:
+Counter({'o1': 0.658994, 'o2': 0.341006})

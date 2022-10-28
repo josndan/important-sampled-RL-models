@@ -67,7 +67,7 @@ def get_baseline_estimation(num_episode):
         print(f"{abs(estimate[i] / num_episode - dist[i]):0.5e}")
 
 
-def get_baseline_equal_policy(num_episode, epi_len=100, discount=1):
+def get_baseline_equal_policy(num_episode, epi_len=10, discount=1):
     parser = POMDPParser("./input/POMDP")
     pomdp_factory = get_world_factory(parser)
     policy = get_agent(parser, "data_collecting_states.csv", True)
@@ -78,14 +78,14 @@ def get_baseline_equal_policy(num_episode, epi_len=100, discount=1):
                                                            num_episode, epi_len)
     s2_step_reward, r2, _ = simulation.estimate_avg_return(policy, discount, num_episode, epi_len)
     print("Baseline")
-    print("Return stats")
-    print(f"\nabsolute error: {abs(r1 - r2):0.5e}")
+    print("\nReturn stats")
+    print(f"absolute error: {abs(r1 - r2):0.5e}")
 
-    print("Step reward stats\n")
+    print("Step reward stats")
     error = np.abs(s1_step_reward - s2_step_reward)
-    print(f"\nmin error: {np.min(error):0.5e}")
-    print(f"\nmax error: {np.max(error):0.5e}")
-    print(f"\naverage: {np.average(error):0.5e}\n")
+    print(f"min error: {np.min(error):0.5e}")
+    print(f"max error: {np.max(error):0.5e}")
+    print(f"average: {np.average(error):0.5e}\n")
 
     return s1_step_reward, s2_step_reward, r1, r2
 
@@ -106,9 +106,8 @@ def timeit(func):
 
 
 @timeit
-def simulate(num_episodes, verbose=True, epi_len=100):
+def simulate(num_episodes, verbose=True, epi_len=10, discount=1):
     parser = POMDPParser("./input/POMDP")
-    discount = 1
 
     pomdp_factory = get_world_factory(parser)
 
@@ -125,6 +124,7 @@ def simulate(num_episodes, verbose=True, epi_len=100):
     #
     mu_agent = get_correcting_agent(data_collector, pi_agent, parser)
 
+    print("\nThe Policy are\n")
     if verbose:
         print("Policy Pi")
         print(pi_agent.policy)
@@ -153,13 +153,13 @@ def simulate(num_episodes, verbose=True, epi_len=100):
     #         print(f"\nAbsolute Error: {abs(pi_step_reward[step_len] - mu_step_reward[step_len]):0.5e}\n")
 
     print(f"\npi Return: {pi_return}")
-    print(f"\nmu Return: {mu_return}")
-    print(f"\nAbsolute error: {abs(pi_return - mu_return):0.5e}\n")
+    print(f"mu Return: {mu_return}")
+    print(f"Absolute error: {abs(pi_return - mu_return):0.5e}\n")
     print("Step reward stats")
     error = np.abs(pi_step_reward - mu_step_reward)
-    print(f"\nmin error: {np.min(error):0.5e}")
-    print(f"\nmax error: {np.max(error):0.5e}")
-    print(f"\naverage: {np.average(error):0.5e}\n")
+    print(f"min error: {np.min(error):0.5e}")
+    print(f"max error: {np.max(error):0.5e}")
+    print(f"average: {np.average(error):0.5e}\n")
     print()
     print("Pi Observation visitation:")
     print(pi_observation_visitations)
@@ -175,12 +175,14 @@ def main(num_epi):
 
     fig = plt.figure()
     ax = fig.add_subplot()
-
+    epi_len = 10
+    discount = 0.9
     for i, n in enumerate(num_epi):
         print(f"\n\nIn simulation {i + 1}")
 
-        pi_step_reward, mu_step_reward, _, _ = simulate(int(n))
-        base_s1_step_reward, base_s2_step_reward, _, _ = get_baseline_equal_policy(int(n))
+        base_s1_step_reward, base_s2_step_reward, _, _ = get_baseline_equal_policy(int(n), epi_len=epi_len,
+                                                                                   discount=discount)
+        pi_step_reward, mu_step_reward, _, _ = simulate(int(n), epi_len=epi_len, discount=discount)
 
         y = np.absolute(pi_step_reward - mu_step_reward)
         y_ = np.absolute(base_s1_step_reward - base_s2_step_reward)
@@ -205,5 +207,5 @@ def main(num_epi):
 
 
 if __name__ == '__main__':
-    num_epi = [1e5]
+    num_epi = [1e3]
     main(num_epi)

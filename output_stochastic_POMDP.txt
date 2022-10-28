@@ -1,0 +1,31 @@
+Baseline
+Return stats
+absolute error: 1.27070e-01
+
+Step reward stats
+min error: 0.00000e+00
+max error: 6.80000e-04
+average: 2.96000e-04
+
+Policy Pi
+{'o1': {'a1': 0.6, 'a2': 0.4}, 'o2': {'a1': 0.3, 'a2': 0.7}}
+Data collecting policy
+{'s1': {'a1': 0.7, 'a2': 0.3}, 's2': {'a1': 0.2, 'a2': 0.8}, 's3': {'a1': 0.6, 'a2': 0.4}}
+Corrected Policy
+{'s2': {'a1': 0.39, 'a2': 0.6099999999999999}, 's1': {'a1': 0.42, 'a2': 0.5800000000000001}, 's3': {'a1': 0.36, 'a2': 0.6399999999999999}}
+
+
+pi Return: 103.41852
+mu Return: 103.19456
+Absolute error: 2.23960e-01
+
+Step reward stats
+min error: 0.00000e+00
+max error: 6.80000e-04
+average: 3.86000e-04
+
+Pi Observation visitation:
+Counter({'o2': 0.699992, 'o1': 0.300008})
+
+Mu Observation visitation:
+Counter({'o2': 0.700566, 'o1': 0.299434})
