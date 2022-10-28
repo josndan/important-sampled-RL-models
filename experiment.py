@@ -81,6 +81,7 @@ class Experiment:
         step = int(step)
 
         estimated_return = 0
+        all_returns = []
         step_reward = np.zeros(step)
         observation_visitations = Counter()
 
@@ -89,6 +90,7 @@ class Experiment:
                     delayed(run)(agent, self.world_factory(), discount, step, epi_len, False) for _ in
                     range(num_episode))):
                 estimated_return += epi_ret
+                all_returns.append(epi_ret)
                 step_reward += step_reward
                 observation_visitations += observation_visitation
 
@@ -98,6 +100,7 @@ class Experiment:
             for i in tqdm(range(1, num_episode + 1)):
                 e_return, s_reward, observation_visitation = run(agent, self.world_factory(), discount, step, epi_len)
                 estimated_return += e_return
+                all_returns.append(e_return)
                 observation_visitations += observation_visitation
                 step_reward = step_reward + s_reward
 
@@ -106,4 +109,4 @@ class Experiment:
         for key in observation_visitations:
             observation_visitations[key] /= normalization_factor
 
-        return step_reward / num_episode, estimated_return / num_episode, observation_visitations
+        return step_reward / num_episode, estimated_return / num_episode, observation_visitations,all_returns

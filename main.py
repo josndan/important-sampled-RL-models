@@ -1,11 +1,8 @@
 import sys
 from collections import Counter
-from typing import Callable
-
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
-
 from data_collector import DataCollector
 from experiment import Experiment
 from parser import POMDPParser
@@ -13,6 +10,7 @@ from utils import get_random
 from world import POMDP
 from agent import Agent, AgentOnObservation
 import time
+import seaborn as sns
 
 
 def get_world_factory(parser):
@@ -67,6 +65,7 @@ def get_baseline_estimation(num_episode):
         print(f"{abs(estimate[i] / num_episode - dist[i]):0.5e}")
 
 
+# Measure epistemic uncertainty due to finite number of trails
 def get_baseline_equal_policy(num_episode, epi_len=10, discount=1):
     parser = POMDPParser("./input/POMDP")
     pomdp_factory = get_world_factory(parser)
@@ -74,20 +73,20 @@ def get_baseline_equal_policy(num_episode, epi_len=10, discount=1):
 
     simulation = Experiment(pomdp_factory)
 
-    s1_step_reward, r1, _ = simulation.estimate_avg_return(policy, discount,
-                                                           num_episode, epi_len)
-    s2_step_reward, r2, _ = simulation.estimate_avg_return(policy, discount, num_episode, epi_len)
+    avg_step_reward_1, avg_ret_1, _, all_returns = simulation.estimate_avg_return(policy, discount,
+                                                                                  num_episode, epi_len)
+    avg_step_reward_2, avg_ret_2, _, all_returns_2 = simulation.estimate_avg_return(policy, discount, num_episode,
+                                                                                    epi_len)
+
     print("Baseline")
-    print("\nReturn stats")
-    print(f"absolute error: {abs(r1 - r2):0.5e}")
+    print("\nDifference in average return stats")
+    print("Variance ", abs(avg_ret_2 - avg_ret_1))
 
-    print("Step reward stats")
-    error = np.abs(s1_step_reward - s2_step_reward)
-    print(f"min error: {np.min(error):0.5e}")
-    print(f"max error: {np.max(error):0.5e}")
-    print(f"average: {np.average(error):0.5e}\n")
-
-    return s1_step_reward, s2_step_reward, r1, r2
+    error = np.abs(avg_step_reward_1 - avg_step_reward_2)
+    print("Difference in average step reward stats")
+    print(f"min variance: {np.min(error):0.5e}")
+    print(f"max variance: {np.max(error):0.5e}")
+    print(f"average variance: {np.average(error):0.5e}\n")
 
 
 def timeit(func):
@@ -126,13 +125,13 @@ def simulate(num_episodes, verbose=True, epi_len=10, discount=1):
 
     print("\nThe Policy are\n")
     if verbose:
-        print("Policy Pi")
-        print(pi_agent.policy)
-
         print("Data collecting policy")
         print(data_collecting_policy.policy)
 
-        print("Corrected Policy")
+        print("Policy Pi")
+        print(pi_agent.policy)
+
+        print("Policy Mu")
         print(mu_agent.policy)
         print()
         sys.stdout.flush()
@@ -141,10 +140,14 @@ def simulate(num_episodes, verbose=True, epi_len=10, discount=1):
 
     # number of single rewards do you want? step = 1 means just give me the ability to extract just the
     # first reward; step = 2 means give me the ability to extract the first as well as the second reward
-    pi_step_reward, pi_return, pi_observation_visitations = simulation.estimate_avg_return(pi_agent, discount,
-                                                                                           num_episodes, epi_len)
-    mu_step_reward, mu_return, mu_observation_visitations = simulation.estimate_avg_return(mu_agent, discount,
-                                                                                           num_episodes, epi_len)
+    pi_step_reward, pi_return, pi_observation_visitations, all_returns_pi = simulation.estimate_avg_return(pi_agent,
+                                                                                                          discount,
+                                                                                                          num_episodes,
+                                                                                                          epi_len)
+    mu_step_reward, mu_return, mu_observation_visitations, all_returns_mu = simulation.estimate_avg_return(mu_agent,
+                                                                                                          discount,
+                                                                                                          num_episodes,
+                                                                                                          epi_len)
 
     # if verbose:
     #     for step_len in range(int(step)):
@@ -152,14 +155,19 @@ def simulate(num_episodes, verbose=True, epi_len=10, discount=1):
     #         print(f"\nmu {step_len + 1} reward: {mu_step_reward[step_len]}")
     #         print(f"\nAbsolute Error: {abs(pi_step_reward[step_len] - mu_step_reward[step_len]):0.5e}\n")
 
-    print(f"\npi Return: {pi_return}")
-    print(f"mu Return: {mu_return}")
-    print(f"Absolute error: {abs(pi_return - mu_return):0.5e}\n")
+    print(f"\npi Average Return: {pi_return}")
+    print(f"mu Average Return: {mu_return}")
+    print(f"Absolute error in average return: {abs(pi_return - mu_return):0.5e}\n")
+
+    # plt.hist(all_returns_1)
+    # plt.hist(all_returns_2)
+    # plt.show()
+
     print("Step reward stats")
     error = np.abs(pi_step_reward - mu_step_reward)
-    print(f"min error: {np.min(error):0.5e}")
-    print(f"max error: {np.max(error):0.5e}")
-    print(f"average: {np.average(error):0.5e}\n")
+    print(f"min error in difference in average rewards: {np.min(error):0.5e}")
+    print(f"max error in difference in average rewards: {np.max(error):0.5e}")
+    print(f"average error in difference in average rewards: {np.average(error):0.5e}\n")
     print()
     print("Pi Observation visitation:")
     print(pi_observation_visitations)
@@ -167,45 +175,55 @@ def simulate(num_episodes, verbose=True, epi_len=10, discount=1):
     print("Mu Observation visitation:")
     print(mu_observation_visitations)
 
-    return pi_step_reward, mu_step_reward, pi_return, mu_return
+    return pi_step_reward, mu_step_reward, pi_return, mu_return,all_returns_pi,all_returns_mu
 
 
-def main(num_epi):
+def main(num_trials_in_each_simulation, epi_len=10):
     # get_baseline_equal_policy(int(1e5))
 
-    fig = plt.figure()
-    ax = fig.add_subplot()
-    epi_len = 10
+    fig, (ax1, ax2,ax3) = plt.subplots(3)
     discount = 0.9
-    for i, n in enumerate(num_epi):
+    for i, n in enumerate(num_trials_in_each_simulation):
         print(f"\n\nIn simulation {i + 1}")
 
-        base_s1_step_reward, base_s2_step_reward, _, _ = get_baseline_equal_policy(int(n), epi_len=epi_len,
-                                                                                   discount=discount)
-        pi_step_reward, mu_step_reward, _, _ = simulate(int(n), epi_len=epi_len, discount=discount)
+        get_baseline_equal_policy(int(n), epi_len=epi_len,
+                                  discount=discount)
+        pi_step_reward, mu_step_reward, _, _,all_return_pi,all_return_mu = simulate(int(n), epi_len=epi_len,
+                                                        discount=discount)
 
         y = np.absolute(pi_step_reward - mu_step_reward)
-        y_ = np.absolute(base_s1_step_reward - base_s2_step_reward)
-        x_ = np.arange(1, len(y_) + 1)
-        z_ = np.polyfit(x_, y_, 1)
-        p_ = np.poly1d(z_)
+
         x = np.arange(1, len(y) + 1)
         z = np.polyfit(x, y, 1)
         p = np.poly1d(z)
-        ax.scatter(x_, y_, label=f"Baseline for Number of trials {int(n):0.1e}")
-        ax.plot(x_, p_(x_))
 
-        ax.plot(x, p(x))
-        ax.scatter(x, y, label=f"Number of trials {int(n):0.1e}")
+        ax3.plot(x, p(x))
+        ax3.scatter(x, y, label=f"Number of trials {int(n):0.1e}")
 
-    ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
-    plt.legend()
-    plt.xlabel("Step")
-    plt.ylabel("Absolute Error")
-    plt.title("Absolute error vs time step")
+        ax1.hist(all_return_pi)
+        ax2.hist(all_return_mu)
+
+    ax1.set_xlabel("Return of pi")
+    ax1.set_ylabel("Frequency")
+
+    ax2.set_xlabel("Return of mu")
+    ax2.set_ylabel("Frequency")
+
+    ax1.get_shared_x_axes().join(ax1,ax2)
+
+    ax3.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2e'))
+    ax3.legend()
+    ax3.set_xlabel("Step")
+    ax3.set_ylabel("Absolute Error")
+
+    ax3.title.set_text("Absolute error vs time step")
+
+    fig.tight_layout()
+
     plt.show()
 
 
 if __name__ == '__main__':
-    num_epi = [1e3]
-    main(num_epi)
+    sns.set()
+    num_trials_in_each_simulation = [1e5] #Can't be more than 1 element because of histogram plot
+    main(num_trials_in_each_simulation)

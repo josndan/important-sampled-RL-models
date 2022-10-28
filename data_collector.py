@@ -22,7 +22,6 @@ class DataCollector:
 
         policy = CustomDefaultDict(self.world.states, CustomDefaultDict(self.world.actions, 0))
 
-        print(pi)
         for state in self.world.states:
             obs = max(self.world.observation_function[state],key=self.world.observation_function[state].get)
             policy[state] = pi[obs]
