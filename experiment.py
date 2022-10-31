@@ -17,10 +17,14 @@ def run(agent, world, discount, step, epi_len, return_history=False):
     t = 0
     step_reward = []
     observation_visitation = Counter()
+    state_visitation = Counter()
+
     while not world.reached_absorbing() and t < epi_len:
         current_state = world.get_current_state()
-        current_observation = world.get_current_observation()
-        observation_visitation[current_observation] += 1
+        state_visitation[current_state] += 1
+        if isinstance(world, POMDP):
+            current_observation = world.get_current_observation()
+            observation_visitation[current_observation] += 1
         if isinstance(agent, AgentOnObservation):
             if current_observation is None:
                 raise Exception("Current Observation is None")  # sanity check this should never happen
@@ -55,7 +59,11 @@ def run(agent, world, discount, step, epi_len, return_history=False):
 
     if return_history:
         current_state = world.get_current_state()
-        history.append([current_state])
+        if isinstance(world, POMDP):
+            current_observation = world.get_current_observation()
+            history.append([current_state, current_observation])
+        else:
+            history.append([current_state])
 
     if t < step:
         raise Exception("Time step less than episode length")
@@ -63,7 +71,7 @@ def run(agent, world, discount, step, epi_len, return_history=False):
     if return_history:
         return history, epi_return, np.asarray(step_reward)
     else:
-        return epi_return, np.asarray(step_reward), observation_visitation
+        return epi_return, np.asarray(step_reward), observation_visitation, state_visitation
 
 
 class Experiment:
@@ -84,29 +92,39 @@ class Experiment:
         all_returns = []
         step_reward = np.zeros(step)
         observation_visitations = Counter()
+        state_visitations = Counter()
 
         if parallel:
-            for epi_ret, step_reward, observation_visitation in tqdm(Parallel(n_jobs=4)(
+            for epi_ret, step_reward, observation_visitation, state_visitation in tqdm(Parallel(n_jobs=4)(
                     delayed(run)(agent, self.world_factory(), discount, step, epi_len, False) for _ in
                     range(num_episode))):
                 estimated_return += epi_ret
                 all_returns.append(epi_ret)
                 step_reward += step_reward
                 observation_visitations += observation_visitation
+                state_visitations += state_visitation
 
             # estimated_return, step_reward = reduce(lambda a, b: tuple(map(operator.add, a, b)), result,
             #                                        (0, np.zeros(step)))
         else:
             for i in tqdm(range(1, num_episode + 1)):
-                e_return, s_reward, observation_visitation = run(agent, self.world_factory(), discount, step, epi_len)
+                e_return, s_reward, observation_visitation, state_visitation = run(agent, self.world_factory(),
+                                                                                   discount, step, epi_len)
                 estimated_return += e_return
                 all_returns.append(e_return)
                 observation_visitations += observation_visitation
+                state_visitations += state_visitation
+
                 step_reward = step_reward + s_reward
 
-        normalization_factor = sum(observation_visitations.values())
+        normalization_factor_obs = sum(observation_visitations.values())
+
+        normalization_factor_states = sum(state_visitations.values())
 
         for key in observation_visitations:
-            observation_visitations[key] /= normalization_factor
+            observation_visitations[key] /= normalization_factor_obs
 
-        return step_reward / num_episode, estimated_return / num_episode, observation_visitations,all_returns
+        for key in state_visitations:
+            state_visitations[key] /= normalization_factor_states
+
+        return step_reward / num_episode, estimated_return / num_episode, observation_visitations, state_visitations, all_returns

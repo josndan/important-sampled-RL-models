@@ -26,10 +26,11 @@ class MDPParser:
 
     def parse_reward_function(self):
         reward_function = pd.read_csv(self.model_path.joinpath("reward_function.csv").as_posix(), skipinitialspace=True)
-        result = defaultdictWhichPrints(int)
+        result = defaultdictWhichPrints(lambda: defaultdictWhichPrints(
+            lambda: defaultdictWhichPrints(lambda: defaultdictWhichPrints(int))))
         for index, row in reward_function.iterrows():
-            s, p = row[0], row[1]
-            result[s] = p
+            s1, a, s2, r, p = row
+            result[s1][a][s2][r] = p
         return result
 
     def parse_policy(self, policyPath):
@@ -50,8 +51,8 @@ class MDPParser:
 
 
 class POMDPParser(MDPParser):
-    def __init__(self,*args,**kwargs):
-        super(POMDPParser,self).__init__(*args,**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(POMDPParser, self).__init__(*args, **kwargs)
 
     def parse_observation(self):
         observations_df = pd.read_csv(self.model_path.joinpath("observations.csv").as_posix(), skipinitialspace=True)
@@ -59,12 +60,13 @@ class POMDPParser(MDPParser):
 
     def parse_observation_function(self):
         observation_function = pd.read_csv(self.model_path.joinpath("observation_function.csv").as_posix(),
-                                          skipinitialspace=True)
+                                           skipinitialspace=True)
         result = defaultdictWhichPrints(lambda: defaultdictWhichPrints(int))
         for index, row in observation_function.iterrows():
-            s,o,p = row[0], row[1], row[2]
+            s, o, p = row[0], row[1], row[2]
             result[s][o] = p
         return result
+
 
 class defaultdictWhichPrints(defaultdict):
     def __init__(self, *args, **kargs):

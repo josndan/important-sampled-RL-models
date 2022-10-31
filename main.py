@@ -39,7 +39,7 @@ def get_agent(parser, path, policy_on_state=False):
         agent = Agent(states, actions)
     else:
         observations = parser.parse_observation()
-        agent = AgentOnObservation(observations, actions)
+        agent = Agent(observations, actions)
 
     agent.initialize_policy(policy)
     return agent
@@ -73,9 +73,9 @@ def get_baseline_equal_policy(num_episode, epi_len=10, discount=1):
 
     simulation = Experiment(pomdp_factory)
 
-    avg_step_reward_1, avg_ret_1, _, all_returns = simulation.estimate_avg_return(policy, discount,
+    avg_step_reward_1, avg_ret_1, _, _, all_returns = simulation.estimate_avg_return(policy, discount,
                                                                                   num_episode, epi_len)
-    avg_step_reward_2, avg_ret_2, _, all_returns_2 = simulation.estimate_avg_return(policy, discount, num_episode,
+    avg_step_reward_2, avg_ret_2, _, _, all_returns_2 = simulation.estimate_avg_return(policy, discount, num_episode,
                                                                                     epi_len)
 
     print("Baseline")
@@ -121,6 +121,9 @@ def simulate(num_episodes, verbose=True, epi_len=10, discount=1):
     # print("History")
     # print(data_collector.history)
     #
+
+    m_hat_factory = data_collector.get_estimated_model()
+
     mu_agent = get_correcting_agent(data_collector, pi_agent, parser)
 
     print("\nThe Policy are\n")
@@ -138,13 +141,15 @@ def simulate(num_episodes, verbose=True, epi_len=10, discount=1):
 
     simulation = Experiment(pomdp_factory)
 
+    simulation_estimate = Experiment(m_hat_factory)
+
     # number of single rewards do you want? step = 1 means just give me the ability to extract just the
     # first reward; step = 2 means give me the ability to extract the first as well as the second reward
-    pi_step_reward, pi_return, pi_observation_visitations, all_returns_pi = simulation.estimate_avg_return(pi_agent,
+    pi_step_reward, pi_return, pi_observation_visitations, pi_state_visitations, all_returns_pi = simulation_estimate.estimate_avg_return(pi_agent,
                                                                                                           discount,
                                                                                                           num_episodes,
                                                                                                           epi_len)
-    mu_step_reward, mu_return, mu_observation_visitations, all_returns_mu = simulation.estimate_avg_return(mu_agent,
+    mu_step_reward, mu_return, mu_observation_visitations, mu_state_visitations, all_returns_mu = simulation.estimate_avg_return(mu_agent,
                                                                                                           discount,
                                                                                                           num_episodes,
                                                                                                           epi_len)
@@ -169,8 +174,8 @@ def simulate(num_episodes, verbose=True, epi_len=10, discount=1):
     print(f"max error in difference in average rewards: {np.max(error):0.5e}")
     print(f"average error in difference in average rewards: {np.average(error):0.5e}\n")
     print()
-    print("Pi Observation visitation:")
-    print(pi_observation_visitations)
+    print("Pi state visitation: (which is actually observations)")
+    print(pi_state_visitations)
     print()
     print("Mu Observation visitation:")
     print(mu_observation_visitations)

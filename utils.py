@@ -37,7 +37,7 @@ def validate_prob_axiom(dist):
 def relative_error(x, y):
     return max(abs(x - y) / (x if x != 0 else float("-inf")), abs(x - y) / (y if y != 0 else float("-inf")))
 
-
+#Nested Defaultdict is better name
 class CustomDefaultDict(dict):
     def __init__(self, set_to_check, default):
         super(CustomDefaultDict, self).__init__()

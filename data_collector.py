@@ -1,8 +1,10 @@
+import copy
+
 from experiment import run
+from src.world import MDP
 from utils import CustomDefaultDict, normalize, validate_prob_axiom, parallelize
 from functools import lru_cache
-from operator import add
-from functools import reduce
+from collections import defaultdict
 from tqdm import tqdm
 
 
@@ -15,6 +17,86 @@ class DataCollector:
         self.num_epi = num_epi
         self.epi_len = epi_len
 
+    def get_estimated_model(self):
+        if self.history is None:
+            raise Exception("Data not yet collected")
+
+        observations = self.world.observations
+        actions = self.world.actions
+        n = len(self.history)
+        d_0_obs = CustomDefaultDict(self.world.observations, 0)
+        rewards = self.world.rewards
+
+        joint_s_a_s = CustomDefaultDict(observations,
+                                        CustomDefaultDict(actions,
+                                                          CustomDefaultDict(
+                                                              observations, 0
+                                                          )
+                                                          )
+                                        )
+
+        joint_s_a = CustomDefaultDict(observations,
+                                      CustomDefaultDict(actions,
+                                                        0
+                                                        )
+                                      )
+
+        joint_s_a_s_r = CustomDefaultDict(observations,
+                                          CustomDefaultDict(actions,
+                                                            CustomDefaultDict(
+                                                                observations,
+                                                                defaultdict(int))
+                                                            )
+                                          )
+        rewards = set()
+        ob_1s = set()
+        ob_2s = set()
+
+        # Assumming self.world is a POMDP
+        for trajectory in self.history:
+            obs_0 = trajectory[0][1]  # First SOAR in the episode
+            d_0_obs[obs_0] += 1 / n
+            for i in range(len(trajectory) - 1):
+                s_1, o_1, a, r, s_2, o_2 = trajectory[i] + trajectory[i + 1][:2]
+
+                r = int(r[1:])  # assumed rewards are integers
+                joint_s_a_s[o_1][a][o_2] += 1
+                joint_s_a_s_r[o_1][a][o_2][r] += 1
+                joint_s_a[o_1][a] += 1
+                rewards.add(r)
+                ob_2s.add(o_2)
+                ob_1s.add(o_1)
+
+        transition = CustomDefaultDict(observations,
+                                       CustomDefaultDict(actions,
+                                                         CustomDefaultDict(
+                                                             observations,
+                                                             0
+                                                         )
+                                                         ))
+
+        reward_function = CustomDefaultDict(observations,
+                                            CustomDefaultDict(actions,
+                                                              CustomDefaultDict(
+                                                                  observations,
+                                                                  CustomDefaultDict(
+                                                                      rewards, 0
+                                                                  )
+                                                              )
+                                                              ))
+
+        for ob_1 in ob_1s:
+            for a in actions:
+                for ob_2 in ob_2s:
+                    transition[ob_1][a][ob_2] = joint_s_a_s[ob_1][a][ob_2] / joint_s_a[ob_1][a]
+                    for r in rewards:
+                        if joint_s_a_s_r[ob_1][a][ob_2][r] != 0:
+                            reward_function[ob_1][a][ob_2][r] = joint_s_a_s_r[ob_1][a][ob_2][r] / joint_s_a_s[ob_1][a][
+                                ob_2]
+
+        mdp = MDP()
+        mdp.initialize_world(observations, transition, reward_function, d_0_obs, actions)
+        return lambda: copy.deepcopy(mdp)
 
     def get_correction_policy(self, pi):
         if self.history is None:
@@ -23,11 +105,10 @@ class DataCollector:
         policy = CustomDefaultDict(self.world.states, CustomDefaultDict(self.world.actions, 0))
 
         for state in self.world.states:
-            obs = max(self.world.observation_function[state],key=self.world.observation_function[state].get)
+            obs = max(self.world.observation_function[state], key=self.world.observation_function[state].get)
             policy[state] = pi[obs]
 
         return policy
-
 
     # def get_correction_policy(self, pi, eqn_number=1, debug=False):
     #     if self.history is None:
